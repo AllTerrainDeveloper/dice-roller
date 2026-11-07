@@ -874,7 +874,7 @@ const THEMES = {
 		],
 	},
 	medieval: {
-		name: 'Medieval Castle', bg: '#07050a', fog: '#08060a', exposure: 1.1, env: 'room', envIntensity: 0.12,
+		name: 'Medieval Castle', bg: '#07050a', fog: '#08060a', exposure: 1.25, env: 'room', envIntensity: 0.32,
 		bloom: [ 0.22, 0.5, 0.92 ], font: [ 400, '"MedievalSharp"' ], candles: true,
 		css: { '--accent': '#ffb35c', '--accent2': '#b5541c', '--text': '#f7e9d6', '--muted': 'rgba(247,233,214,.6)', '--glass': 'rgba(14,9,6,.55)', '--vig': 'rgba(0,0,0,.72)', '--bg': '#07050a', '--btn-fg': '#2a1406' },
 		phys: { floorFriction: 0.55, floorRest: 0.3, wallRest: 0.35 },
@@ -1423,8 +1423,8 @@ function buildLights() {
 		point( 0xff7a2a, 60, [ 13, 2.2, -5 ], true );
 	} else if ( key === 'medieval' ) {
 		// Only moonlight from a high window plus the four candles (built with the tray).
-		const moon = dirShadow( 0x8090c8, 0.4, [ 8, 14, -9 ] ); moon.castShadow = false;
-		scene.add( new THREE.HemisphereLight( 0x2a2030, 0x0a0604, 0.1 ) );
+		const moon = dirShadow( 0x8f9ad0, 0.6, [ 8, 14, -9 ] ); moon.castShadow = false;
+		scene.add( new THREE.HemisphereLight( 0x6a5240, 0x1a0e06, 0.55 ) );
 	} else {
 		spotShadow( 0xfff0d6, 3.6, [ -2, 23, 6 ] );
 		scene.add( new THREE.HemisphereLight( 0x40203a, 0x080305, 0.35 ) );
@@ -1665,11 +1665,11 @@ function buildCandles( hx, hz ) {
 		const flame = new THREE.Mesh( new THREE.PlaneGeometry( 1, 1 ), flameMaterial( seed ) ); flame.position.y = top + 0.12; flame.renderOrder = 6; flame.frustumCulled = false; g.add( flame );
 		const halo = new THREE.Sprite( new THREE.SpriteMaterial( { map: glowTex(), color: 0xffa050, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.22, fog: false } ) );
 		halo.scale.setScalar( 0.85 ); halo.position.y = top + 0.18; g.add( halo );
-		const light = new THREE.PointLight( 0xff9440, 30, 0, 1.35 ); light.position.y = top + 0.4; light.castShadow = true;
+		const light = new THREE.PointLight( 0xff9440, 40, 0, 1.35 ); light.position.y = top + 0.4; light.castShadow = true;
 		light.shadow.mapSize.set( shadowRes, shadowRes ); light.shadow.bias = -0.002; light.shadow.normalBias = 0.02; light.shadow.radius = 4; light.shadow.camera.near = 0.15; light.shadow.camera.far = 40;
 		g.add( light );
 		railGroup.add( g );
-		candles.push( { light, flame, halo, base: 30, seed, ly: top + 0.4 } );
+		candles.push( { light, flame, halo, base: 40, seed, ly: top + 0.4 } );
 	}
 }
 
