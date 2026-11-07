@@ -2,7 +2,7 @@
 
 <h1 align="center">Dice Roller</h1>
 
-<p align="center">A physically simulated 3D dice roller in a single page.<br>Any dice, loaded weights, forced results and seven tables, all driven by the URL.</p>
+<p align="center">A physically simulated 3D dice roller in a single page.<br>Any dice, loaded weights, forced results and nine tables, all driven by the URL.</p>
 
 <p align="center"><a href="https://allterraindeveloper.github.io/dice-roller/"><b>Try it live</b></a> · <a href="https://allterraindeveloper.github.io/dice-roller/?dice=[4,6,8,10,12,20]&background=velvet">Full set on velvet</a> · <a href="https://allterraindeveloper.github.io/dice-roller/?dice=[4,6,8,10,12,20]&background=crystal">Crystal Palace</a> · <a href="https://allterraindeveloper.github.io/dice-roller/?dice=[20,20,10,7]&background=neon">Synthwave</a> · <a href="https://allterraindeveloper.github.io/dice-roller/?dice=[6,6,6]&reverse=[2,4,6]&background=wood">Forced 2·4·6</a></p>
 
@@ -14,8 +14,11 @@
 - **Any number of sides (2–100).** Fair, face-transitive shapes for every die: coin, tetrahedron, cube, octahedron, dodecahedron, icosahedron, trapezohedra (the d10 family, so `38` is a 38-face spindle) and bipyramids. Odd dice use the doubled fair shape with each number twice.
 - **Forced results that still look real.** `reverse` makes dice land on chosen faces without faking the motion (see [How forced results work](#how-forced-results-work)).
 - **Loaded dice** with exact per-face probabilities.
-- **Seven tables:** Casino Felt, Tavern Oak, Carrara Marble, Nebula Glass, Synthwave, Royal Velvet and Crystal Palace, each with its own lighting, dice materials, physics (felt is dead, marble is bouncy) and synthesized impact sounds.
+- **Nine tables:** Casino Felt, Tavern Oak, Carrara Marble, Nebula Glass, Synthwave, Royal Velvet, Crystal Palace, Stone Age and Medieval Castle, each with its own lighting, dice materials, physics (felt is dead, marble is bouncy) and synthesized impact sounds.
 - **Crystal Palace:** refractive gem dice with dispersion that bend the crystal floor behind them and cast coloured caustic pools, animated chromatic caustics, a transmissive crystal frame with a prismatic under-glow, crystal spires, drifting sparkles and glass-chime sounds.
+- **Stone Age:** a court of polished cobblestones shaded per pixel, with the same uneven surface in the physics, so dice wobble and settle tilted on the stones; worn, hand-carved stone dice and a ring of pebbles as the border.
+- **Medieval Castle:** a dark oak table in a castle hall lit by four wax candles near the corners, each with a living flame and its own flickering, shadow-casting light, so the shadows shake.
+- **Tap to re-roll** (`reroll=1`): tap a die, or its result chip, and it jumps high with a random direction and spin. Real physics against the other dice, so the dice it hits can change too. With `lock=1`, settled dice become immovable obstacles and keep their results.
 - **Physically based rendering** with three.js: clearcoat resin, glass with dispersion, metal and pearlescent dice, engraved numbers, soft shadows and mirror floors.
 - **Setup dialog.** Build any configuration visually. It only writes the query string, so every setup is a shareable link.
 - **Roll history.** Every roll is recorded frame by frame and can be replayed at real speed or in slow motion, or cleared.
@@ -34,7 +37,9 @@ The page is configured entirely through its query string. With no parameters it 
 | `dice` | `dice=[4,6,8,10,12,20,38]` | One entry per die: its number of sides (2–100, up to 30 dice). |
 | `weights` | `weights=[6,1,1,10,1,1,1]` | Loaded dice. The first number picks the die size, then one relative weight per face. Here face 3 of every d6 is 10× as likely. Several: `weights=[[6,1,1,10,1,1,1],[20,…]]`. |
 | `reverse` | `reverse=[2,4,6]` | Results to land on, in dice order. Use `0` for a die that should roll freely, e.g. `reverse=[0,20]`. |
-| `background` | `background=crystal` | `felt`, `wood`, `marble`, `cosmos`, `neon`, `velvet`, `crystal` (or `1`–`7`). |
+| `background` | `background=crystal` | `felt`, `wood`, `marble`, `cosmos`, `neon`, `velvet`, `crystal`, `stone`, `medieval` (or `1`–`9`). |
+| `reroll` | `reroll=1` | Tap a die (or its result chip) to re-roll just that die. Re-rolls are pure physics: forced results and weights don't apply to them. |
+| `lock` | `lock=1` | With `reroll=1`: settled dice can't be moved; re-rolled dice bounce off them. |
 
 Examples:
 
@@ -44,6 +49,8 @@ Examples:
 ?dice=[6,6,6]&reverse=[2,4,6]&background=velvet
 ?dice=[20,20,10,7]&background=neon
 ?dice=[4,6,8,10,12,20]&background=crystal
+?dice=[6,6,6,6,6,6]&background=stone&reroll=1
+?dice=[20,12,10,8,6,4]&background=medieval&reroll=1&lock=1
 ```
 
 ## Keyboard

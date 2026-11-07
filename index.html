@@ -16,7 +16,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;500;600;700&family=Orbitron:wght@700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;500;600;700&family=Orbitron:wght@700&family=Outfit:wght@500;600;700&family=MedievalSharp&family=Rubik+Dirt&display=swap" rel="stylesheet" />
 <style>
 :root {
 	--accent: #e9c46a; --accent2: #d98e3c; --text: #f6f1e7; --muted: rgba(246,241,231,.62);
@@ -74,6 +74,9 @@ canvas#c:active { cursor: grabbing; }
 .chip .sw { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 1px rgba(255,255,255,.35), 0 0 8px color-mix(in oklab, var(--c) 60%, transparent); }
 .chip i { font-style: normal; font-size: 11px; color: var(--muted); letter-spacing: .05em; }
 .chip b { font: 700 19px/1 var(--num-font); }
+.chip.tap, .results.single.tap .solo { pointer-events: auto; cursor: pointer; transition: background .2s, border-color .2s, transform .5s cubic-bezier(.2,1.5,.4,1), opacity .3s; }
+.chip.tap:hover, .results.single.tap .solo:hover { background: color-mix(in oklab, var(--accent) 22%, transparent); border-color: color-mix(in oklab, var(--accent) 55%, transparent); }
+.results.single.tap .solo { border-radius: 14px; border: 1px solid transparent; }
 .total { display: flex; flex-direction: column; align-items: center; padding-left: 14px; border-left: 1px solid var(--stroke); }
 .total span { font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
 .total b { font: 700 32px/1.05 var(--num-font); background: linear-gradient(180deg, var(--text) 30%, var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
@@ -338,6 +341,19 @@ dialog.sheet { width: 100vw; max-height: 94vh; margin: auto 0 0; border-radius: 
 				<h3 id="cfgTH">Table</h3>
 				<div class="themes" id="cfgThemes" role="radiogroup" aria-label="Table"></div>
 			</section>
+			<section aria-labelledby="cfgIH">
+				<h3 id="cfgIH">Interaction</h3>
+				<div class="wlist">
+					<div class="wcard" id="cfgRerollCard">
+						<div class="whead"><div><b>Tap a die to re-roll it</b><span class="wstate" id="cfgRerollState">Off</span></div><span class="sp"></span><button type="button" class="switch" role="switch" id="cfgReroll" aria-checked="false" aria-label="Tap a die to re-roll it"></button></div>
+						<p class="note" style="margin: 8px 0 0">The die jumps high with a random direction and spin. If it hits other dice they react with real physics, so their results can change too. Re-rolls are pure physics: fixed results and weights don't apply to them.</p>
+					</div>
+					<div class="wcard" id="cfgLockCard">
+						<div class="whead"><div><b>Lock settled dice</b><span class="wstate" id="cfgLockState">Off</span></div><span class="sp"></span><button type="button" class="switch" role="switch" id="cfgLock" aria-checked="false" aria-label="Lock settled dice"></button></div>
+						<p class="note" style="margin: 8px 0 0">Resting dice become immovable. A re-rolled die still bounces off them, but their results never change. Needs “Tap a die to re-roll it”.</p>
+					</div>
+				</div>
+			</section>
 			<section aria-labelledby="cfgQH">
 				<h3 id="cfgQH">Quality</h3>
 				<div class="wcard" id="cfgHqCard">
@@ -373,7 +389,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /* ------------------------------------------------------------------ *
  * Utilities
@@ -460,11 +476,13 @@ const params = ( () => {
 		return v;
 	} );
 
-	const bgMap = { 1: 'felt', 2: 'wood', 3: 'marble', 4: 'cosmos', 5: 'neon', 6: 'velvet', 7: 'crystal', felt: 'felt', casino: 'felt', green: 'felt', wood: 'wood', tavern: 'wood', oak: 'wood', marble: 'marble', gallery: 'marble', stone: 'marble', cosmos: 'cosmos', space: 'cosmos', nebula: 'cosmos', galaxy: 'cosmos', neon: 'neon', synthwave: 'neon', retro: 'neon', velvet: 'velvet', royal: 'velvet', crystal: 'crystal', palace: 'crystal', crystalpalace: 'crystal', prism: 'crystal', glass: 'crystal' };
+	const bgMap = { 1: 'felt', 2: 'wood', 3: 'marble', 4: 'cosmos', 5: 'neon', 6: 'velvet', 7: 'crystal', 8: 'stone', 9: 'medieval', felt: 'felt', casino: 'felt', green: 'felt', wood: 'wood', tavern: 'wood', oak: 'wood', marble: 'marble', gallery: 'marble', cosmos: 'cosmos', space: 'cosmos', nebula: 'cosmos', galaxy: 'cosmos', neon: 'neon', synthwave: 'neon', retro: 'neon', velvet: 'velvet', royal: 'velvet', crystal: 'crystal', palace: 'crystal', crystalpalace: 'crystal', prism: 'crystal', glass: 'crystal', stone: 'stone', stoneage: 'stone', rock: 'stone', pebble: 'stone', medieval: 'medieval', castle: 'medieval', candle: 'medieval', candles: 'medieval' };
 	const bgRaw = ( get( 'background', 'bg', 'theme' ) || 'felt' ).toLowerCase().trim();
 	let background = bgMap[ bgRaw ];
-	if ( ! background ) { warnings.push( `Unknown background "${ bgRaw }". Use felt, wood, marble, cosmos, neon, velvet or crystal.` ); background = 'felt'; }
-	return { dice, weights, reverse, background, warnings };
+	if ( ! background ) { warnings.push( `Unknown background "${ bgRaw }". Use felt, wood, marble, cosmos, neon, velvet, crystal, stone or medieval.` ); background = 'felt'; }
+	const on = ( v ) => /^(1|true|on|yes)$/i.test( String( v ?? '' ).trim() );
+	const reroll = on( get( 'reroll', 'tap' ) ), lock = reroll && on( get( 'lock' ) );
+	return { dice, weights, reverse, background, reroll, lock, warnings };
 } )();
 
 /* ------------------------------------------------------------------ *
@@ -840,6 +858,36 @@ const THEMES = {
 			{ body: '#ffe9a8', ink: '#fffaf0', transmission: 1, rough: 0.02, thickness: 2.2, atten: '#d08a10', attenDist: 2.4, glow: 0.45, dispersion: 1.1, ior: 1.9, inkMetal: 1, inkRough: 0.12 },
 		],
 	},
+	stone: {
+		name: 'Stone Age', bg: '#1a140e', fog: '#1a140e', exposure: 1.0, env: 'room', envIntensity: 0.45,
+		bloom: [ 0.12, 0.4, 0.95 ], font: [ 400, '"Rubik Dirt"' ], stone: true, noFrame: true,
+		css: { '--accent': '#e4c38c', '--accent2': '#9c6b3c', '--text': '#f4ecdf', '--muted': 'rgba(244,236,223,.6)', '--glass': 'rgba(26,20,14,.52)', '--vig': 'rgba(0,0,0,.6)', '--bg': '#1a140e', '--btn-fg': '#2a1a0a' },
+		phys: { floorFriction: 0.7, floorRest: 0.24, wallRest: 0.3 },
+		sound: { floor: { type: 'bandpass', f: 1500, q: 1.8, gain: 0.8, decay: 0.05, tone: 380, toneGain: 0.45, toneDecay: 0.07 }, wall: { type: 'bandpass', f: 1200, q: 1.6, gain: 0.75, decay: 0.06, tone: 300, toneGain: 0.5, toneDecay: 0.08 } },
+		dice: [
+			{ body: '#5b5e63', ink: '#efe6d2', rough: 0.55, clearcoat: 0.2 },
+			{ body: '#c4a37a', ink: '#3a2414', rough: 0.6, clearcoat: 0.15 },
+			{ body: '#5d8a6b', ink: '#f1ead6', rough: 0.4, clearcoat: 0.35 },
+			{ body: '#8e3f2e', ink: '#f3e4c8', rough: 0.5, clearcoat: 0.2 },
+			{ body: '#e4d8bf', ink: '#4a3420', rough: 0.55, clearcoat: 0.15 },
+			{ body: '#18171b', ink: '#dcc59a', rough: 0.18, clearcoat: 0.7 },
+		],
+	},
+	medieval: {
+		name: 'Medieval Castle', bg: '#07050a', fog: '#08060a', exposure: 1.1, env: 'room', envIntensity: 0.12,
+		bloom: [ 0.22, 0.5, 0.92 ], font: [ 400, '"MedievalSharp"' ], candles: true,
+		css: { '--accent': '#ffb35c', '--accent2': '#b5541c', '--text': '#f7e9d6', '--muted': 'rgba(247,233,214,.6)', '--glass': 'rgba(14,9,6,.55)', '--vig': 'rgba(0,0,0,.72)', '--bg': '#07050a', '--btn-fg': '#2a1406' },
+		phys: { floorFriction: 0.55, floorRest: 0.3, wallRest: 0.35 },
+		sound: { floor: { type: 'bandpass', f: 900, q: 1.1, gain: 0.85, decay: 0.09, tone: 170, toneGain: 0.55, toneDecay: 0.13 }, wall: { type: 'bandpass', f: 650, q: 1.0, gain: 0.8, decay: 0.1, tone: 140, toneGain: 0.6, toneDecay: 0.15 } },
+		dice: [
+			{ body: '#e9dcbd', ink: '#3a2414', rough: 0.45 },
+			{ body: '#5a1013', ink: '#d9b25f', rough: 0.32, inkMetal: 1, inkRough: 0.3 },
+			{ body: '#a8803f', ink: '#1e130a', metal: 1, rough: 0.38, clearcoat: 0 },
+			{ body: '#2f2c2b', ink: '#d8d4cc', metal: 0.85, rough: 0.45, clearcoat: 0, inkMetal: 1, inkRough: 0.25 },
+			{ body: '#1f3a28', ink: '#d9b25f', rough: 0.32, inkMetal: 1, inkRough: 0.3 },
+			{ body: '#b5651d', ink: '#fff0d0', transmission: 0.85, rough: 0.06, thickness: 1.2, atten: '#6e2a04', attenDist: 0.6 },
+		],
+	},
 };
 const theme = THEMES[ params.background ];
 for ( const [ k, v ] of Object.entries( theme.css ) ) document.documentElement.style.setProperty( k, v );
@@ -969,7 +1017,7 @@ function createDieType( N ) {
 		inner = P.map( ( p ) => V3( ( p.x * ( Rin - r ) ) / Rin, ( p.y * ( hh - r ) ) / hh, ( p.z * ( Rin - r ) ) / Rin ) );
 	} else {
 		const rho = Math.min( ...faces.map( ( f ) => f.d ) );
-		r = rho * ( { cube: 0.24, tetra: 0.22, octa: 0.2, dodeca: 0.17, icosa: 0.17, trap: 0.17, bipy: 0.16 }[ kind ] );
+		r = rho * ( { cube: 0.24, tetra: 0.22, octa: 0.2, dodeca: 0.17, icosa: 0.17, trap: 0.17, bipy: 0.16 }[ kind ] ) * ( theme.stone ? 1.65 : 1 );
 		inner = P.map( ( p ) => p.clone().multiplyScalar( ( rho - r ) / rho ) );
 	}
 	faces = polyFaces( inner );
@@ -1026,7 +1074,22 @@ function createDieType( N ) {
 		f.bb = { x0: Math.min( ...xs ), x1: Math.max( ...xs ), y0: Math.min( ...ys ), y1: Math.max( ...ys ) };
 	}
 	const circumR = Math.max( ...inner.map( ( p ) => p.length() ) ) + r;
-	return { N, fc, kind, doubled, inner, faces, r, circumR, readBottom: kind === 'tetra', vertexLabel, innerFlat: new Float32Array( inner.flatMap( ( p ) => [ p.x, p.y, p.z ] ) ) };
+	const coin = kind === 'coin';
+	// Dice collide as their true rounded shape, so they can only come to rest on a face. A thin,
+	// wide coin would rock on the single contact point a rounded collider makes, so the coin uses a
+	// polygonal hull instead: perfectly flat caps (a full contact patch) and a smoothly curved rim.
+	let hullFlat = null;
+	if ( coin ) {
+		// Fully rounded rim (a half-circle profile): flat caps, but no flat band to stand on edge.
+		const pts = [], K = 10, H = Math.max( ...inner.map( ( v ) => v.y ) ) + r, R0 = Math.max( ...inner.map( ( v ) => Math.hypot( v.x, v.z ) ) ) + r - H;
+		for ( const v of inner ) {
+			if ( v.y < 0 ) continue;
+			const d = V3( v.x, 0, v.z ).normalize();
+			for ( let k = 0; k <= 2 * K; k++ ) { const a = ( k / ( 2 * K ) ) * Math.PI; pts.push( d.x * ( R0 + H * Math.sin( a ) ), H * Math.cos( a ), d.z * ( R0 + H * Math.sin( a ) ) ); }
+		}
+		hullFlat = new Float32Array( pts );
+	}
+	return { N, fc, kind, doubled, inner, faces, r, circumR, coin, hullFlat, readBottom: kind === 'tetra', vertexLabel, innerFlat: new Float32Array( inner.flatMap( ( p ) => [ p.x, p.y, p.z ] ) ) };
 }
 
 // Atlas of engraved numbers: one cell per labeled face, mask in red channel.
@@ -1071,6 +1134,12 @@ function buildAtlas( type ) {
 	type.atlasS = S;
 	const bump = document.createElement( 'canvas' ); bump.width = bump.height = S / 2;
 	const bctx = bump.getContext( '2d' ); bctx.filter = `blur(${ 1.2 * TQ }px)`; bctx.drawImage( cv, 0, 0, S / 2, S / 2 );
+	if ( theme.stone ) {
+		const gS = 256, grain = canvasFrom( gS, gS, ( d ) => { const a = fbm( gS, gS, 16, 16, 3, 909 ), b = tileNoise( gS, gS, 128, 128, 913 ); for ( let i = 0; i < gS * gS; i++ ) { const v = ( a[ i ] * 0.6 + b[ i ] * 0.4 ) * 255; d[ i * 4 ] = d[ i * 4 + 1 ] = d[ i * 4 + 2 ] = v; d[ i * 4 + 3 ] = 255; } } );
+		bctx.filter = 'none'; bctx.globalAlpha = 0.22; bctx.globalCompositeOperation = 'lighter';
+		for ( let y = 0; y < S / 2; y += gS ) for ( let x = 0; x < S / 2; x += gS ) bctx.drawImage( grain, x, y );
+		bctx.globalAlpha = 1; bctx.globalCompositeOperation = 'source-over';
+	}
 	type.mask = texFrom( cv, { srgb: false } ); type.bump = texFrom( bump, { srgb: false } );
 	for ( const t of [ type.mask, type.bump ] ) { t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); }
 }
@@ -1284,6 +1353,13 @@ function buildFloor() {
 		// Solid (not see-through) so the gem dice refract it: transmission only sees opaque surfaces.
 		mat = new THREE.MeshPhysicalMaterial( { color: '#424a96', map, bumpMap: bump, bumpScale: 0.35, roughness: 0.1, clearcoat: 1, clearcoatRoughness: 0.02 } );
 		addCaustics( mat );
+	} else if ( key === 'stone' ) {
+		// Dark earth around the cobbled court (the court itself is rebuilt with the tray).
+		const t = feltTextures( '#3a2c1e' ), rep = size / 9;
+		mat = new THREE.MeshStandardMaterial( { map: texFrom( t.color, { repeat: rep } ), bumpMap: texFrom( t.bump, { srgb: false, repeat: rep } ), bumpScale: 2, roughness: 1 } );
+	} else if ( key === 'medieval' ) {
+		const t = woodTextures( '#5a3a22', '#1e1109', 5 ), rep = size / 12;
+		mat = new THREE.MeshPhysicalMaterial( { map: texFrom( t.color, { repeat: rep } ), bumpMap: texFrom( t.bump, { srgb: false, repeat: rep } ), bumpScale: 1.2, roughness: 0.62, clearcoat: 0.2, clearcoatRoughness: 0.5 } );
 	} else {
 		const cv = speckleTexture( 'rgba(3,5,14,0.8)' ), rep = size / 12;
 		const map = texFrom( cv, { repeat: rep } );
@@ -1341,6 +1417,14 @@ function buildLights() {
 		spotShadow( 0xeef2ff, 3.6, [ -9, 17, 8 ] );
 		point( 0x7fe8ff, 30, [ -9, 3, -4 ] ); point( 0xff8ff0, 28, [ 9, 3, -3 ] ); point( 0xffd98a, 20, [ 0, 2.5, 10 ] );
 		scene.add( new THREE.HemisphereLight( 0x7c78e0, 0x0c0a22, 0.22 ) );
+	} else if ( key === 'stone' ) {
+		dirShadow( 0xffcf8a, 2.5, [ -11, 9, 7 ] );
+		scene.add( new THREE.HemisphereLight( 0x8fa4c8, 0x3a2a1a, 0.55 ) );
+		point( 0xff7a2a, 60, [ 13, 2.2, -5 ], true );
+	} else if ( key === 'medieval' ) {
+		// Only moonlight from a high window plus the four candles (built with the tray).
+		const moon = dirShadow( 0x8090c8, 0.4, [ 8, 14, -9 ] ); moon.castShadow = false;
+		scene.add( new THREE.HemisphereLight( 0x2a2030, 0x0a0604, 0.1 ) );
 	} else {
 		spotShadow( 0xfff0d6, 3.6, [ -2, 23, 6 ] );
 		scene.add( new THREE.HemisphereLight( 0x40203a, 0x080305, 0.35 ) );
@@ -1366,11 +1450,12 @@ function railMaterial() {
 		case 'velvet': return new THREE.MeshStandardMaterial( { color: '#dcb563', metalness: 1, roughness: 0.22 } );
 		case 'neon': return new THREE.MeshPhysicalMaterial( { color: '#0a0712', roughness: 0.2, clearcoat: 1 } );
 		case 'crystal': return new THREE.MeshPhysicalMaterial( { color: '#eef3ff', transmission: 1, thickness: 0.9, roughness: 0.03, ior: 1.6, dispersion: 0.8, clearcoat: 1, clearcoatRoughness: 0.02, attenuationColor: new THREE.Color( '#b7aeff' ), attenuationDistance: 1.6, iridescence: 0.35, iridescenceIOR: 1.3 } );
+		case 'medieval': { const t = woodTextures( '#4a2c16', '#1a0d05', 6 ); return new THREE.MeshPhysicalMaterial( { map: texFrom( t.color, { repeat: 0.12 } ), roughness: 0.5, clearcoat: 0.35, clearcoatRoughness: 0.3 } ); }
 		default: return new THREE.MeshPhysicalMaterial( { color: '#0b0d1c', roughness: 0.15, metalness: 0.4, clearcoat: 1 } );
 	}
 }
 // [height, thickness, bevel radius, inner corner radius] — one seamless frame per table.
-const RAIL = { felt: [ 0.82, 0.95, 0.34, 0.65 ], wood: [ 0.9, 0.62, 0.1, 0.34 ], marble: [ 0.36, 0.26, 0.08, 0.26 ], velvet: [ 0.62, 0.55, 0.19, 0.48 ], neon: [ 0.26, 0.34, 0.07, 0.48 ], cosmos: [ 0.2, 0.22, 0.06, 0.6 ], crystal: [ 0.5, 0.44, 0.15, 0.55 ] }[ params.background ];
+const RAIL = { felt: [ 0.82, 0.95, 0.34, 0.65 ], wood: [ 0.9, 0.62, 0.1, 0.34 ], marble: [ 0.36, 0.26, 0.08, 0.26 ], velvet: [ 0.62, 0.55, 0.19, 0.48 ], neon: [ 0.26, 0.34, 0.07, 0.48 ], cosmos: [ 0.2, 0.22, 0.06, 0.6 ], crystal: [ 0.5, 0.44, 0.15, 0.55 ], stone: [ 0.55, 1.2, 0.1, 0.5 ], medieval: [ 0.78, 0.62, 0.12, 0.3 ] }[ params.background ];
 let railMat = null;
 // Counter-clockwise rounded rectangle as explicit points (no duplicated start/end point,
 // which would make ExtrudeGeometry's bevel spike at the seam).
@@ -1399,6 +1484,195 @@ function smoothNormals( g ) {
 	for ( let i = 0; i < pos.count; i++ ) { const s = acc.get( keys[ i ] ); v.set( s[ 0 ], s[ 1 ], s[ 2 ] ).normalize(); out.set( [ v.x, v.y, v.z ], i * 3 ); }
 	g.setAttribute( 'normal', new THREE.BufferAttribute( out, 3 ) );
 }
+// --- Stone Age: a cobbled court of rounded, polished stones ------------------------------
+// The same height function drives the visible stones and the physics heightfield, so dice
+// really wobble and settle on the uneven surface.
+const STONE_C = 1.25;
+// Integer hash, identical in JS and GLSL, so physics, geometry and per-pixel shading agree exactly.
+function stoneHash( i, j, k ) {
+	let h = ( Math.imul( i | 0, 1664525 ) + Math.imul( j | 0, 1013904223 ) + Math.imul( k | 0, 2654435761 | 0 ) ) >>> 0;
+	h = ( h ^ ( h >>> 16 ) ) >>> 0; h = Math.imul( h, 2246822519 | 0 ) >>> 0; h = ( h ^ ( h >>> 13 ) ) >>> 0; h = Math.imul( h, 3266489917 | 0 ) >>> 0; h = ( h ^ ( h >>> 16 ) ) >>> 0;
+	return ( h & 0xffffff ) / 16777216;
+}
+const STONE_GLSL = `
+float ihash( int i, int j, int k ) { uint h = uint( i ) * 1664525u + uint( j ) * 1013904223u + uint( k ) * 2654435761u; h ^= h >> 16u; h *= 2246822519u; h ^= h >> 13u; h *= 3266489917u; h ^= h >> 16u; return float( h & 0xffffffu ) / 16777216.0; }
+vec4 stoneAt( vec2 p ) {
+	const float SC = 1.25; vec2 g = floor( p / SC ); float d1 = 1e9, d2 = 1e9; ivec2 best = ivec2( 0 );
+	for ( int a = -1; a <= 1; a++ ) for ( int b = -1; b <= 1; b++ ) {
+		int i = int( g.x ) + a, j = int( g.y ) + b;
+		vec2 c = ( vec2( float( i ), float( j ) ) + 0.15 + 0.7 * vec2( ihash( i, j, 1 ), ihash( i, j, 2 ) ) ) * SC;
+		float d = length( p - c );
+		if ( d < d1 ) { d2 = d1; d1 = d; best = ivec2( i, j ); } else if ( d < d2 ) d2 = d;
+	}
+	float edge = ( d2 - d1 ) * 0.5, Hs = 0.05 + 0.09 * ihash( best.x, best.y, 3 );
+	float h = Hs * ( 1.0 - exp( -edge * 9.0 ) ) * ( 1.0 - 0.35 * min( 1.0, pow( d1 / ( SC * 0.75 ), 2.0 ) ) );
+	return vec4( h, edge, float( best.x ), float( best.y ) );
+}
+float vnoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * ( 3.0 - 2.0 * f ); int x = int( i.x ), y = int( i.y );
+	return mix( mix( ihash( x, y, 9 ), ihash( x + 1, y, 9 ), u.x ), mix( ihash( x, y + 1, 9 ), ihash( x + 1, y + 1, 9 ), u.x ), u.y ); }
+float stoneH( vec2 p ) { return stoneAt( p ).x + 0.0022 * vnoise( p * 22.0 ) + 0.0012 * vnoise( p * 61.0 ); }
+`;
+function stoneSample( x, z ) {
+	const gi = Math.floor( x / STONE_C ), gj = Math.floor( z / STONE_C );
+	let d1 = 1e9, d2 = 1e9, bi = 0, bj = 0;
+	for ( let a = -1; a <= 1; a++ ) for ( let b = -1; b <= 1; b++ ) {
+		const i = gi + a, j = gj + b, px = ( i + 0.15 + 0.7 * stoneHash( i, j, 1 ) ) * STONE_C, pz = ( j + 0.15 + 0.7 * stoneHash( i, j, 2 ) ) * STONE_C;
+		const d = Math.hypot( x - px, z - pz );
+		if ( d < d1 ) { d2 = d1; d1 = d; bi = i; bj = j; } else if ( d < d2 ) d2 = d;
+	}
+	const edge = ( d2 - d1 ) * 0.5, Hs = 0.05 + 0.09 * stoneHash( bi, bj, 3 );
+	const h = Hs * ( 1 - Math.exp( -edge * 9 ) ) * ( 1 - 0.35 * Math.min( 1, Math.pow( d1 / ( STONE_C * 0.75 ), 2 ) ) );
+	return { h, edge, i: bi, j: bj };
+}
+let stoneField = null, stoneMat = null, pebbleGeo = null, hfOrder = null;
+function buildStoneCourt( hx, hz ) {
+	const [ , T, , RC ] = RAIL, W = 2 * ( hx + T + 9 ), D = 2 * ( hz + T + 9 ), sp = HQ ? 0.07 : 0.1;
+	const g = new THREE.PlaneGeometry( W, D, Math.round( W / sp ), Math.round( D / sp ) ); g.rotateX( -Math.PI / 2 );
+	const pos = g.attributes.position;
+	for ( let i = 0; i < pos.count; i++ ) pos.setY( i, stoneSample( pos.getX( i ), pos.getZ( i ) ).h );
+	g.computeVertexNormals();
+	if ( ! stoneMat ) {
+		// Colour, polish, seams and the surface normal are evaluated per pixel from the same
+		// stone layout as the physics, so the cobbles stay crisp at any zoom or resolution.
+		stoneMat = new THREE.MeshPhysicalMaterial( { roughness: 0.4, clearcoat: 0.4, clearcoatRoughness: 0.3 } );
+		const pal = [ '#8a8378', '#9d907c', '#6f6a64', '#a68f70', '#7d7468', '#b3a48c', '#5f5a55', '#8f7b60', '#7a8076' ].map( ( h ) => new THREE.Color( h ) );
+		stoneMat.onBeforeCompile = ( sh ) => {
+			sh.uniforms.uPal = { value: pal }; sh.uniforms.uDirt = { value: new THREE.Color( '#2b2118' ) };
+			sh.vertexShader = 'varying vec3 vSW;\n' + sh.vertexShader.replace( '#include <project_vertex>', '#include <project_vertex>\n\tvSW = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;' );
+			sh.fragmentShader = 'varying vec3 vSW;\nuniform vec3 uPal[ 9 ];\nuniform vec3 uDirt;\n' + STONE_GLSL + sh.fragmentShader
+				.replace( '#include <map_fragment>', `#include <map_fragment>
+	vec4 st = stoneAt( vSW.xz ); int si = int( st.z ), sj = int( st.w );
+	vec3 sc = uPal[ int( ihash( si, sj, 4 ) * 9.0 ) ] * ( 0.8 + 0.32 * ihash( si, sj, 5 ) );
+	sc *= 0.86 + 0.14 * vnoise( vSW.xz * 3.1 + float( si ) * 7.0 ) + 0.06 * vnoise( vSW.xz * 17.0 ) - 0.04 * vnoise( vSW.xz * 45.0 );
+	float seam = smoothstep( 0.0, 0.045, st.y );
+	diffuseColor.rgb = mix( uDirt * ( 0.8 + 0.4 * vnoise( vSW.xz * 9.0 ) ), sc, seam );` )
+				.replace( '#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n\troughnessFactor = mix( 0.95, 0.3 + 0.18 * vnoise( vSW.xz * 6.0 ), seam );' )
+				.replace( '#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+	{ const float e = 0.004; vec2 q = vSW.xz;
+	  vec3 nW = normalize( vec3( -( stoneH( q + vec2( e, 0.0 ) ) - stoneH( q - vec2( e, 0.0 ) ) ) / ( 2.0 * e ), 1.0, -( stoneH( q + vec2( 0.0, e ) ) - stoneH( q - vec2( 0.0, e ) ) ) / ( 2.0 * e ) ) );
+	  normal = normalize( ( viewMatrix * vec4( nW, 0.0 ) ).xyz ); }` );
+		};
+		stoneMat.customProgramCacheKey = () => 'stone-court-v1';
+	}
+	const court = new THREE.Mesh( g, stoneMat ); court.receiveShadow = true; railGroup.add( court );
+	stoneField = { hx, hz };
+
+	// A ring of rounded pebbles as the border.
+	if ( ! pebbleGeo ) {
+		const ico = new THREE.IcosahedronGeometry( 1, 3 ), pp = ico.attributes.position;
+		for ( let i = 0; i < pp.count; i++ ) { const x = pp.getX( i ), y = pp.getY( i ), z = pp.getZ( i ), k = 1 + 0.07 * Math.sin( 3.1 * x + 1.3 ) * Math.sin( 2.7 * y + 0.4 ) * Math.sin( 3.3 * z + 2.1 ) + 0.04 * Math.sin( 7 * x + 5 * z ); pp.setXYZ( i, x * k, y * k, z * k ); }
+		ico.deleteAttribute( 'normal' ); ico.deleteAttribute( 'uv' );
+		pebbleGeo = mergeVertices( ico ); pebbleGeo.computeVertexNormals();
+	}
+	const rng = mulberry32( 11 ), items = [], rows = [ [ 0.45, 0.5 ], [ 0.95, 0.6 ] ];
+	for ( const [ off, gap ] of rows ) {
+		const pts = loopPoints( hx + off, hz + off, RC + off, 0, Math.round( ( 4 * ( hx + hz + 2 * off ) ) / gap ) );
+		for ( const p of pts ) {
+			const sx = 0.26 + rng() * 0.16, sy = 0.18 + rng() * 0.14, sz = 0.26 + rng() * 0.16;
+			const q = new THREE.Quaternion().setFromEuler( new THREE.Euler( ( rng() - 0.5 ) * 0.4, rng() * 6.28, ( rng() - 0.5 ) * 0.4 ) );
+			items.push( new THREE.Matrix4().compose( V3( p.x + ( rng() - 0.5 ) * 0.12, sy * 0.72, p.z + ( rng() - 0.5 ) * 0.12 ), q, V3( sx, sy, sz ) ) );
+		}
+	}
+	const pm = new THREE.MeshPhysicalMaterial( { color: '#ffffff', roughness: 0.48, clearcoat: 0.25, clearcoatRoughness: 0.4 } );
+	const pebbles = new THREE.InstancedMesh( pebbleGeo, pm, items.length ), pc = new THREE.Color();
+	const ppal = [ '#8a8378', '#6f6a64', '#a68f70', '#5f5a55', '#9d907c', '#7a7064' ];
+	items.forEach( ( m, i ) => { pebbles.setMatrixAt( i, m ); pebbles.setColorAt( i, pc.set( ppal[ Math.floor( rng() * ppal.length ) ] ).multiplyScalar( 0.85 + rng() * 0.3 ) ); } );
+	pebbles.castShadow = pebbles.receiveShadow = true; railGroup.add( pebbles );
+}
+// Heightfield collider for the court. Rapier's row/column convention is checked once by ray casts.
+function stoneCollider() {
+	const { hx, hz } = stoneField, step = 0.2, nx = Math.ceil( ( 2 * hx ) / step ), nz = Math.ceil( ( 2 * hz ) / step );
+	stoneField.cache = stoneField.cache || {};
+	const make = ( rowsAlongZ ) => {
+		const nr = rowsAlongZ ? nz : nx, nc = rowsAlongZ ? nx : nz;
+		let hts = stoneField.cache[ rowsAlongZ ];
+		if ( ! hts ) {
+			hts = stoneField.cache[ rowsAlongZ ] = new Float32Array( ( nr + 1 ) * ( nc + 1 ) );
+			for ( let c = 0; c <= nc; c++ ) for ( let r = 0; r <= nr; r++ ) {
+				const x = -hx + ( 2 * hx * ( rowsAlongZ ? c / nc : r / nr ) ), z = -hz + ( 2 * hz * ( rowsAlongZ ? r / nr : c / nc ) );
+				hts[ c * ( nr + 1 ) + r ] = stoneSample( x, z ).h;
+			}
+		}
+		return RAPIER.ColliderDesc.heightfield( nr, nc, hts, { x: 2 * hx, y: 1, z: 2 * hz } );
+	};
+	if ( hfOrder === null ) {
+		const err = ( order ) => {
+			const w = new RAPIER.World( { x: 0, y: -1, z: 0 } ), b = w.createRigidBody( RAPIER.RigidBodyDesc.fixed() );
+			w.createCollider( make( order ), b ); w.step();
+			let e = 0;
+			for ( const [ fx, fz ] of [ [ 0.31, -0.62 ], [ -0.55, 0.27 ], [ 0.7, 0.4 ], [ -0.2, -0.8 ] ] ) {
+				const x = fx * hx, z = fz * hz, hit = w.castRay( new RAPIER.Ray( { x, y: 3, z }, { x: 0, y: -1, z: 0 } ), 10, true );
+				e += hit ? Math.abs( 3 - ( hit.timeOfImpact ?? hit.toi ) - stoneSample( x, z ).h ) : 1;
+			}
+			w.free(); return e;
+		};
+		hfOrder = err( true ) <= err( false );
+	}
+	return make( hfOrder );
+}
+
+// --- Medieval Castle: four wax candles with living flames and shaking shadows -------------
+const candles = [];
+let glowTexture = null;
+function glowTex() {
+	if ( glowTexture ) return glowTexture;
+	const S = 128, cv = document.createElement( 'canvas' ); cv.width = cv.height = S;
+	const ctx = cv.getContext( '2d' ), gr = ctx.createRadialGradient( S / 2, S / 2, 0, S / 2, S / 2, S / 2 );
+	gr.addColorStop( 0, 'rgba(255,200,130,0.9)' ); gr.addColorStop( 0.25, 'rgba(255,150,60,0.35)' ); gr.addColorStop( 1, 'rgba(255,120,40,0)' );
+	ctx.fillStyle = gr; ctx.fillRect( 0, 0, S, S );
+	return ( glowTexture = texFrom( cv ) );
+}
+function flameMaterial( seed ) {
+	return new THREE.ShaderMaterial( {
+		uniforms: { uTime: causticU.uTime, uSeed: { value: seed }, uFlick: { value: 0 } },
+		vertexShader: 'uniform float uFlick; varying vec2 vUv;\nvoid main() { vUv = uv; vec4 mv = modelViewMatrix * vec4( 0.0, 0.0, 0.0, 1.0 ); mv.xy += vec2( position.x * 0.17, ( position.y + 0.5 ) * ( 0.44 + 0.05 * uFlick ) - 0.06 ); gl_Position = projectionMatrix * mv; }',
+		fragmentShader: `uniform float uTime; uniform float uSeed; varying vec2 vUv;
+void main() {
+	float t = uTime * 6.0 + uSeed;
+	vec2 p = vUv;
+	p.x += ( sin( t * 2.3 + p.y * 5.0 ) * 0.06 + sin( t * 5.1 ) * 0.03 ) * p.y * p.y;
+	float x = ( p.x - 0.5 ) * 2.0, y = p.y;
+	float width = 0.95 * pow( max( 1.0 - y, 0.0 ), 0.75 ) * smoothstep( 0.0, 0.18, y ) + 0.001;
+	float d = abs( x ) / width;
+	float body = smoothstep( 1.0, 0.5, d ) * smoothstep( 1.0, 0.8, y + 0.03 * sin( t * 7.0 ) );
+	float core = smoothstep( 0.55, 0.0, d ) * smoothstep( 0.75, 0.15, y ) * smoothstep( 0.0, 0.12, y );
+	vec3 col = mix( vec3( 1.0, 0.3, 0.04 ), vec3( 1.0, 0.7, 0.26 ), smoothstep( 0.0, 0.6, body ) ) + vec3( 1.0, 0.95, 0.8 ) * core * 1.4;
+	col = mix( col, vec3( 0.25, 0.45, 1.0 ), smoothstep( 0.22, 0.0, y ) * smoothstep( 0.7, 0.2, d ) * 0.45 );
+	float a = clamp( body + core, 0.0, 1.0 );
+	gl_FragColor = vec4( col * a * 1.6, 1.0 );
+}`,
+		transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
+	} );
+}
+function buildCandles( hx, hz ) {
+	candles.length = 0;
+	const [ , T ] = RAIL, rng = mulberry32( 77 ), shadowRes = HQ ? 1024 : 512;
+	const wax = new THREE.MeshPhysicalMaterial( { color: '#efe2c2', roughness: 0.6, sheen: 0.6, sheenColor: new THREE.Color( '#fff1d0' ), emissive: new THREE.Color( '#ff9a40' ), emissiveIntensity: 0.03 } );
+	const iron = new THREE.MeshStandardMaterial( { color: '#3a332c', metalness: 0.85, roughness: 0.45 } );
+	for ( const [ sx, sz ] of [ [ -1, -1 ], [ 1, -1 ], [ 1, 1 ], [ -1, 1 ] ] ) {
+		// Near each corner, but never at exactly the same spot.
+		const x = sx * ( hx + T + 0.45 + rng() * 0.75 ), z = sz * ( hz + T + 0.35 + rng() * 0.75 ) + ( rng() - 0.5 ) * 0.7;
+		const h = 0.9 + rng() * 1.2, r = 0.19 + rng() * 0.08, top = 0.08 + h;
+		const g = new THREE.Group(); g.position.set( x, 0, z ); g.rotation.y = rng() * 6.28;
+		const dish = new THREE.Mesh( new THREE.CylinderGeometry( r * 1.9, r * 2.15, 0.08, 40 ), iron ); dish.position.y = 0.04; dish.castShadow = dish.receiveShadow = true; g.add( dish );
+		const prof = [ new THREE.Vector2( 0, 0.08 ), new THREE.Vector2( r * 1.02, 0.08 ) ];
+		for ( let k = 1; k <= 12; k++ ) { const t = k / 12; prof.push( new THREE.Vector2( r * ( 1 + 0.025 * Math.sin( t * 9 + rng() * 2 ) ), 0.08 + h * t * 0.96 ) ); }
+		prof.push( new THREE.Vector2( r * 0.9, top ), new THREE.Vector2( r * 0.55, top - 0.05 ), new THREE.Vector2( 0.02, top - 0.03 ) );
+		const body = new THREE.Mesh( new THREE.LatheGeometry( prof, 48 ), wax ); body.castShadow = true; body.receiveShadow = true; g.add( body );
+		for ( let k = 0; k < 4; k++ ) { const a = rng() * 6.28, len = 0.12 + rng() * 0.38; const drip = new THREE.Mesh( new THREE.CapsuleGeometry( 0.028 + rng() * 0.02, len, 4, 10 ), wax ); drip.position.set( Math.cos( a ) * r * 0.98, top - len * 0.5 - 0.03, Math.sin( a ) * r * 0.98 ); g.add( drip ); }
+		const wick = new THREE.Mesh( new THREE.CylinderGeometry( 0.012, 0.012, 0.12, 6 ), new THREE.MeshBasicMaterial( { color: '#1a1008' } ) ); wick.position.y = top + 0.03; g.add( wick );
+		const seed = rng() * 100;
+		const flame = new THREE.Mesh( new THREE.PlaneGeometry( 1, 1 ), flameMaterial( seed ) ); flame.position.y = top + 0.12; flame.renderOrder = 6; flame.frustumCulled = false; g.add( flame );
+		const halo = new THREE.Sprite( new THREE.SpriteMaterial( { map: glowTex(), color: 0xffa050, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.22, fog: false } ) );
+		halo.scale.setScalar( 0.85 ); halo.position.y = top + 0.18; g.add( halo );
+		const light = new THREE.PointLight( 0xff9440, 30, 0, 1.35 ); light.position.y = top + 0.4; light.castShadow = true;
+		light.shadow.mapSize.set( shadowRes, shadowRes ); light.shadow.bias = -0.002; light.shadow.normalBias = 0.02; light.shadow.radius = 4; light.shadow.camera.near = 0.15; light.shadow.camera.far = 40;
+		g.add( light );
+		railGroup.add( g );
+		candles.push( { light, flame, halo, base: 30, seed, ly: top + 0.4 } );
+	}
+}
+
 // Crystal Palace set dressing: prismatic under-glow, crystal spires, drifting sparkles, light shafts.
 function buildCrystalDecor( hx, hz ) {
 	const [ , T, , RC ] = RAIL, rng = mulberry32( 7 );
@@ -1461,11 +1735,15 @@ function buildRails( hx, hz ) {
 	// Outer and inner rounded rectangles share one centre, so every corner is a true concentric curve.
 	const shape = new THREE.Shape( roundedRectPts( hx + T - B, hz + T - B, RC + T - B ) );
 	shape.holes.push( new THREE.Path( roundedRectPts( hx + B, hz + B, RC + B ) ) );
-	const g = new THREE.ExtrudeGeometry( shape, { depth: Math.max( 0.01, H - 2 * B ), bevelEnabled: true, bevelThickness: B, bevelSize: B, bevelSegments: 10, curveSegments: 4, steps: 1 } );
-	g.rotateX( -Math.PI / 2 ); g.translate( 0, B, 0 );
-	smoothNormals( g );
-	const frame = new THREE.Mesh( g, railMat ); frame.castShadow = frame.receiveShadow = true; railGroup.add( frame );
+	if ( ! theme.noFrame ) {
+		const g = new THREE.ExtrudeGeometry( shape, { depth: Math.max( 0.01, H - 2 * B ), bevelEnabled: true, bevelThickness: B, bevelSize: B, bevelSegments: 10, curveSegments: 4, steps: 1 } );
+		g.rotateX( -Math.PI / 2 ); g.translate( 0, B, 0 );
+		smoothNormals( g );
+		const frame = new THREE.Mesh( g, railMat ); frame.castShadow = frame.receiveShadow = true; railGroup.add( frame );
+	}
 	if ( params.background === 'crystal' ) buildCrystalDecor( hx, hz );
+	if ( theme.stone ) buildStoneCourt( hx, hz );
+	if ( theme.candles ) buildCandles( hx, hz );
 	if ( params.background === 'neon' || params.background === 'cosmos' ) {
 		const [ c1, c2 ] = params.background === 'neon' ? [ '#22e6ff', '#ff2bd6' ] : [ '#b39cff', '#3fd0e8' ];
 		const curve = new THREE.CatmullRomCurve3( loopPoints( hx + T / 2, hz + T / 2, RC + T / 2, H + 0.05 ), true, 'centripetal' );
@@ -1530,6 +1808,7 @@ function solveFraming() {
 	const air = Math.max( H + 0.6, 2 * Math.max( ...types.map( ( t ) => t.circumR ) ) + 3.2 );
 	for ( const x of [ -hx - T, hx + T ] ) for ( const z of [ -hz - T, hz + T ] ) pts.push( V3( x, 0, z ), V3( x, H + 0.3, z ) );
 	for ( const x of [ -hx, hx ] ) for ( const z of [ -hz, hz ] ) pts.push( V3( x * 0.65, air, z * 0.65 ) );
+	if ( theme.candles ) for ( const sx of [ -1, 1 ] ) for ( const sz of [ -1, 1 ] ) pts.push( V3( sx * ( hx + T + 1.3 ), 2.3, sz * ( hz + T + 1.2 ) ) );
 	const botN = -1 + 2 * bottomReserve(), topN = 1 - 2 * ( 68 / innerHeight );
 	camera.aspect = innerWidth / innerHeight;
 	const probe = camera.clone(); probe.clearViewOffset(); probe.updateProjectionMatrix();
@@ -1604,7 +1883,8 @@ function updateCamera( dt ) {
  * ------------------------------------------------------------------ */
 let RAPIER = null;
 const DT = 1 / 120, G = 96;
-function simulate( seed ) {
+// `nudge` = { idx, poses, lock }: start from the dice where they rest and toss only die `idx`.
+function simulate( seed, nudge = null ) {
 	const rng = mulberry32( seed ), { hx, hz } = arena, n = types.length;
 	const world = new RAPIER.World( { x: 0, y: -G, z: 0 } );
 	world.timestep = DT;
@@ -1614,6 +1894,7 @@ function simulate( seed ) {
 	world.createCollider( RAPIER.ColliderDesc.cuboid( 200, 1, 200 ).setTranslation( 0, -1, 0 ).setFriction( ph.floorFriction ).setRestitution( ph.floorRest ), fixed );
 	const WH = 40, WT = 2;
 	const wall = ( x, z, ex, ez ) => world.createCollider( RAPIER.ColliderDesc.cuboid( ex, WH, ez ).setTranslation( x, WH, z ).setFriction( 0.3 ).setRestitution( ph.wallRest ), fixed );
+	if ( theme.stone && stoneField ) world.createCollider( stoneCollider().setFriction( ph.floorFriction ).setRestitution( ph.floorRest ), fixed );
 	wall( -( hx + WT ), 0, WT, hz + 2 * WT ); wall( hx + WT, 0, WT, hz + 2 * WT ); wall( 0, -( hz + WT ), hx + 2 * WT, WT ); wall( 0, hz + WT, hx + 2 * WT, WT );
 	world.createCollider( RAPIER.ColliderDesc.cuboid( hx + 4, 1, hz + 4 ).setTranslation( 0, 2 * WH, 0 ), fixed );
 
@@ -1642,15 +1923,26 @@ function simulate( seed ) {
 	const spinAxis = V3( -dir.z, 0, dir.x ); // dice rolling off the fingers share a forward tumble
 	const bodies = [];
 	for ( let i = 0; i < n; i++ ) {
-		const t = types[ i ], p = local[ i ].clone().add( C ), q = randQuat( rng );
-		const v = baseV.clone().add( randUnit( rng ).multiplyScalar( 1.1 ) ).add( local[ i ].clone().multiplyScalar( 0.5 ) );
-		const w = spinAxis.clone().multiplyScalar( 10 + rng() * 10 ).add( randUnit( rng ).multiplyScalar( 12 + rng() * 14 ) );
-		const bd = RAPIER.RigidBodyDesc.dynamic().setTranslation( p.x, p.y, p.z ).setRotation( { x: q.x, y: q.y, z: q.z, w: q.w } )
+		const t = types[ i ];
+		let p = local[ i ].clone().add( C ), q = randQuat( rng );
+		let v = baseV.clone().add( randUnit( rng ).multiplyScalar( 1.1 ) ).add( local[ i ].clone().multiplyScalar( 0.5 ) );
+		let w = spinAxis.clone().multiplyScalar( 10 + rng() * 10 ).add( randUnit( rng ).multiplyScalar( 12 + rng() * 14 ) );
+		if ( nudge ) {
+			// Everything starts exactly where it rests; only the tapped die gets a high, spinning hop.
+			p = nudge.poses[ i ].p.clone(); q = nudge.poses[ i ].q.clone();
+			if ( i === nudge.idx ) {
+				const a = rng() * Math.PI * 2, sp = 2.5 + rng() * 4;
+				v = V3( Math.cos( a ) * sp, 31 + rng() * 6, Math.sin( a ) * sp ); w = randUnit( rng ).multiplyScalar( 22 + rng() * 20 );
+			} else { v = V3( 0, 0, 0 ); w = V3( 0, 0, 0 ); }
+		}
+		const locked = nudge && nudge.lock && i !== nudge.idx;
+		const bd = ( locked ? RAPIER.RigidBodyDesc.fixed() : RAPIER.RigidBodyDesc.dynamic() ).setTranslation( p.x, p.y, p.z ).setRotation( { x: q.x, y: q.y, z: q.z, w: q.w } )
 			.setLinvel( v.x, v.y, v.z ).setAngvel( { x: w.x, y: w.y, z: w.z } )
-			.setLinearDamping( 0.1 ).setAngularDamping( t.fc > 20 || t.kind === 'coin' ? 0.9 : 0.45 ).setCcdEnabled( true );
+			.setLinearDamping( t.coin ? 0.6 : 0.1 ).setAngularDamping( t.coin ? 3.2 : t.fc > 20 ? 0.9 : 0.45 ).setCcdEnabled( ! theme.stone );
 		const body = world.createRigidBody( bd );
-		const cd = RAPIER.ColliderDesc.roundConvexHull( t.innerFlat, t.r ) || RAPIER.ColliderDesc.ball( t.circumR );
-		cd.setDensity( 1 ).setFriction( 0.42 ).setRestitution( 0.38 );
+		const cd = ( t.hullFlat ? RAPIER.ColliderDesc.convexHull( t.hullFlat ) : RAPIER.ColliderDesc.roundConvexHull( t.innerFlat, t.r ) ) || RAPIER.ColliderDesc.ball( t.circumR );
+		cd.setDensity( 1 ).setFriction( t.coin ? 0.55 : 0.42 ).setRestitution( t.coin ? 0.12 : 0.38 );
+		if ( t.coin ) cd.setRestitutionCombineRule( RAPIER.CoefficientCombineRule.Min );
 		world.createCollider( cd, body );
 		bodies.push( body );
 	}
@@ -1673,10 +1965,16 @@ function simulate( seed ) {
 				events.push( { t: tnow, i, s: dv, kind } ); lastHit[ i ] = tnow;
 			}
 			prevV[ i ].set( v.x, v.y, v.z );
-			if ( ! b.isSleeping() && ( Math.hypot( v.x, v.y, v.z ) > 0.07 || Math.hypot( w.x, w.y, w.z ) > 0.14 ) ) allCalm = false;
+			// Settled = barely moved over the last 0.3 s (ignores sub-millimetre contact jitter).
+			if ( s > 36 ) {
+				const A = frames[ s - 36 ], B = frames[ s ], o = i * 7;
+				const dp = Math.hypot( B[ o ] - A[ o ], B[ o + 1 ] - A[ o + 1 ], B[ o + 2 ] - A[ o + 2 ] );
+				const dq = Math.abs( A[ o + 3 ] * B[ o + 3 ] + A[ o + 4 ] * B[ o + 4 ] + A[ o + 5 ] * B[ o + 5 ] + A[ o + 6 ] * B[ o + 6 ] );
+				if ( dp > 0.006 || dq < 0.9998 ) allCalm = false;
+			} else allCalm = false;
 		}
 		calm = allCalm ? calm + 1 : 0;
-		if ( s > 60 && calm >= 36 ) { settled = true; break; }
+		if ( s > 60 && calm >= 30 ) { settled = true; break; }
 	}
 	// Validate: every die flat on the table (no cocked dice, no stacking).
 	let valid = settled;
@@ -1686,16 +1984,35 @@ function simulate( seed ) {
 		const t = types[ i ], q = new THREE.Quaternion( last[ i * 7 + 3 ], last[ i * 7 + 4 ], last[ i * 7 + 5 ], last[ i * 7 + 6 ] );
 		let bf = null, bv = Infinity; const nn = new THREE.Vector3();
 		for ( const f of t.faces ) { nn.copy( f.n ).applyQuaternion( q ); if ( nn.y < bv ) { bv = nn.y; bf = f; } }
-		if ( bv > -0.9985 || Math.abs( last[ i * 7 + 1 ] - bf.dOut ) > 0.06 ) valid = false;
+		// On the cobbles a die rests on a tilted stone; elsewhere it must lie flat on the table.
+		const ground = theme.stone ? stoneSample( last[ i * 7 ], last[ i * 7 + 2 ] ).h : 0;
+		if ( theme.stone ? ( bv > -0.9 || last[ i * 7 + 1 ] - ground - bf.dOut > 0.3 ) : ( bv > -0.9985 || Math.abs( last[ i * 7 + 1 ] - bf.dOut ) > 0.06 ) ) valid = false;
 		finals.push( q );
 	}
 	world.free();
-	return { frames, events, valid, duration: ( frames.length - 1 ) * DT };
+	return { frames, events, valid, settled, duration: ( frames.length - 1 ) * DT };
 }
 
 /* ------------------------------------------------------------------ *
  * Rolling: simulate, then bake each requested result by a symmetry
  * ------------------------------------------------------------------ */
+// Re-roll one die from the current table. Physics decides every result here: the tapped die
+// and any die it knocks over land wherever the collision sends them (locked dice never move).
+function planNudge( idx ) {
+	const poses = meshes.map( ( m ) => ( { p: m.position.clone(), q: m.quaternion.clone() } ) );
+	let sim = null;
+	for ( let tries = 0; tries < 20; tries++ ) { sim = simulate( ( seedBase += 7919 ), { idx, poses, lock: params.lock } ); if ( sim.valid ) break; }
+	const last = sim.frames[ sim.frames.length - 1 ];
+	const results = types.map( ( t, i ) => t.faces[ readFace( t, new THREE.Quaternion( last[ i * 7 + 3 ], last[ i * 7 + 4 ], last[ i * 7 + 5 ], last[ i * 7 + 6 ] ) ) ].label );
+	return { ...sim, offsets: types.map( () => new THREE.Quaternion() ), results, kind: 'nudge', die: idx };
+}
+function rerollDie( idx ) {
+	if ( ! RAPIER || anim.phase !== 'done' ) return;
+	const r = planNudge( idx );
+	r.id = ++rollSeq; r.time = new Date(); r.arena = { ...arena };
+	rollHistory.unshift( r ); if ( rollHistory.length > 50 ) rollHistory.pop();
+	playRoll( r, 1 );
+}
 function sampleWeighted( w, rng ) { const tot = w.reduce( ( a, b ) => a + b, 0 ); let x = rng() * tot; for ( let i = 0; i < w.length; i++ ) { x -= w[ i ]; if ( x < 0 ) return i + 1; } return w.length; }
 let seedBase = ( Date.now() ^ ( Math.random() * 1e9 ) ) >>> 0;
 function planRoll() {
@@ -1772,7 +2089,8 @@ function makeDice() {
 	const pal = theme.dice;
 	palettes = types.map( ( t, i ) => pal[ i % pal.length ] );
 	meshes = types.map( ( t, i ) => {
-		const m = new THREE.Mesh( t.geometry, makeDieMaterial( palettes[ i ], t ) );
+		const geo = theme.stone ? t.geometry.clone().scale( 0.97 + 0.06 * Math.random(), 0.97 + 0.06 * Math.random(), 0.97 + 0.06 * Math.random() ) : t.geometry;
+		const m = new THREE.Mesh( geo, makeDieMaterial( palettes[ i ], t ) );
 		m.castShadow = true; m.receiveShadow = true; m.visible = false; scene.add( m ); return m;
 	} );
 	// Gem dice focus the key light into coloured caustic pools on the floor.
@@ -1812,10 +2130,12 @@ function showResults( roll ) {
 	res.classList.remove( 'empty' );
 	res.classList.toggle( 'single', types.length === 1 );
 	$( '#soloType' ).textContent = 'd' + types[ 0 ].N; $( '#soloVal' ).textContent = roll.results[ 0 ];
+	res.classList.toggle( 'tap', params.reroll );
 	chips.innerHTML = '';
 	roll.results.forEach( ( v, i ) => {
 		const c = document.createElement( 'div' ); c.className = 'chip'; c.style.setProperty( '--c', palettes[ i ].body ); c.style.transitionDelay = `${ i * 45 }ms`;
 		c.innerHTML = `<span class="sw"></span><i>d${ types[ i ].N }</i><b>${ v }</b>`; chips.appendChild( c );
+		if ( params.reroll ) { c.classList.add( 'tap' ); c.title = `Re-roll this d${ types[ i ].N }`; c.addEventListener( 'click', () => rerollDie( i ) ); }
 	} );
 	$( '#totalVal' ).textContent = roll.results.reduce( ( a, b ) => a + b, 0 );
 	// Delayed reveals only apply if this roll is still the one resting on the table.
@@ -1842,7 +2162,9 @@ function playRoll( r, speed = 1 ) {
 	if ( meshes[ 0 ].visible ) {
 		meshes.forEach( ( m ) => m.scale.setScalar( 1 ) );
 		anim.from = meshes.map( ( m ) => ( { p: m.position.clone(), q: m.quaternion.clone() } ) );
-		anim.to = poseAt( r, 0 ); anim.phase = 'gather'; anim.t = 0; anim.scaleIn = false;
+		anim.to = poseAt( r, 0 ); anim.t = 0; anim.scaleIn = false;
+		const inPlace = anim.from.every( ( a, i ) => a.p.distanceTo( anim.to[ i ].p ) < 0.01 && Math.abs( a.q.dot( anim.to[ i ].q ) ) > 0.9999 );
+		anim.phase = inPlace ? 'play' : 'gather';
 	} else {
 		meshes.forEach( ( m ) => { m.visible = true; m.scale.setScalar( 0.001 ); } );
 		anim.phase = 'play'; anim.t = 0; anim.scaleIn = true;
@@ -1879,7 +2201,7 @@ function renderHistory() {
 		const li = document.createElement( 'li' ); li.className = 'hitem' + ( r === anim.roll ? ' cur' : '' );
 		const total = r.results.reduce( ( a, b ) => a + b, 0 );
 		const time = r.time.toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit', second: '2-digit' } );
-		li.innerHTML = `<div class="hrow"><b>Roll ${ r.id }</b><time>${ time }</time><span class="htot">${ multi ? '<small>Total</small>' + total : r.results[ 0 ] }</span></div>` +
+		li.innerHTML = `<div class="hrow"><b>${ r.kind === 'nudge' ? `Re-roll d${ types[ r.die ].N }` : `Roll ${ r.id }` }</b><time>${ time }</time><span class="htot">${ multi ? '<small>Total</small>' + total : r.results[ 0 ] }</span></div>` +
 			`<div class="hchips">${ r.results.map( ( v, i ) => `<span style="--c:${ palettes[ i ].body }"><i></i><u>d${ types[ i ].N }</u>${ v }</span>` ).join( '' ) }</div>` +
 			`<div class="hbtns"><button type="button" data-s="1">${ ICON_PLAY }Replay</button><button type="button" data-s="0.28">${ ICON_SLOW }Slow motion</button></div>`;
 		li.querySelectorAll( 'button' ).forEach( ( b ) => b.addEventListener( 'click', () => playRoll( r, Number( b.dataset.s ) ) ) );
@@ -1901,6 +2223,8 @@ const THEME_PV = {
 	cosmos: { sub: 'Black glass under a nebula', rail: '#b39cff', glow: '12px', bg: 'radial-gradient(1.4px 1.4px at 18% 28%, #fff, transparent), radial-gradient(1px 1px at 72% 18%, #fff, transparent), radial-gradient(1.2px 1.2px at 86% 72%, #fff, transparent), radial-gradient(1px 1px at 34% 84%, #fff, transparent), radial-gradient(circle at 24% 30%, rgba(106,44,255,.6), transparent 46%), radial-gradient(circle at 76% 72%, rgba(16,200,216,.45), transparent 46%), #04050d' },
 	neon: { sub: 'Synthwave grid, neon rails', rail: '#22e6ff', glow: '12px', bg: 'linear-gradient(rgba(255,79,216,.5) 1px, transparent 1px) 0 0 / 16px 16px, linear-gradient(90deg, rgba(255,79,216,.5) 1px, transparent 1px) 0 0 / 16px 16px, radial-gradient(circle at 50% 120%, #6a1580, #0a0316 70%)' },
 	velvet: { sub: 'Crimson velvet, gold trim', rail: '#e2bd68', bg: 'radial-gradient(circle at 50% 38%, #b51e4c, #4a0717 74%)' },
+	stone: { sub: 'Polished cobbles, uneven ground', rail: '#7a7064', bg: 'radial-gradient(circle at 18% 28%, #8d8478 0 13%, transparent 14%), radial-gradient(circle at 42% 22%, #a39478 0 12%, transparent 13%), radial-gradient(circle at 70% 30%, #6f6a64 0 14%, transparent 15%), radial-gradient(circle at 30% 62%, #9b8d76 0 15%, transparent 16%), radial-gradient(circle at 58% 66%, #7d7468 0 13%, transparent 14%), radial-gradient(circle at 84% 64%, #b0a28a 0 12%, transparent 13%), radial-gradient(circle at 12% 84%, #6a645c 0 11%, transparent 12%), radial-gradient(circle at 50% 90%, #8f7b60 0 11%, transparent 12%), radial-gradient(circle at 88% 88%, #7a8076 0 11%, transparent 12%), #2b2118' },
+	medieval: { sub: 'Candlelit oak in a dark hall', rail: '#2b1a10', bg: 'radial-gradient(circle at 9% 14%, rgba(255,180,90,.75), transparent 16%), radial-gradient(circle at 92% 18%, rgba(255,170,80,.7), transparent 15%), radial-gradient(circle at 88% 88%, rgba(255,175,85,.7), transparent 16%), radial-gradient(circle at 11% 86%, rgba(255,165,75,.65), transparent 15%), radial-gradient(circle at 50% 50%, rgba(80,45,20,.35), transparent 60%), repeating-linear-gradient(0deg, #3a2414 0 14px, #24150a 14px 15.5px), #120a05' },
 	crystal: { sub: 'Caustics, prisms and crystal spires', rail: '#eef6ff', glow: '16px', bg: 'repeating-linear-gradient(115deg, rgba(255,255,255,0) 0 22px, rgba(255,255,255,.28) 23px, rgba(255,255,255,0) 26px), radial-gradient(ellipse at 50% 58%, rgba(255,255,255,.6), transparent 38%), conic-gradient(from 210deg at 50% 60%, #a9d8ff, #c7b0ff, #ffc9ec, #b8fff0, #fff1bf, #a9d8ff), #1a1640' },
 };
 const MAXW = 12;
@@ -1928,7 +2252,7 @@ function cfgFromParams() {
 	return {
 		dice: params.dice.slice(), reverse: params.reverse.slice(),
 		weights: Object.fromEntries( Object.entries( params.weights ).map( ( [ k, v ] ) => [ k, v.slice() ] ) ),
-		loaded: new Set( Object.keys( params.weights ).map( Number ) ), background: params.background,
+		loaded: new Set( Object.keys( params.weights ).map( Number ) ), background: params.background, reroll: params.reroll, lock: params.lock,
 	};
 }
 const fmtW = ( w ) => ( w % 1 ? w.toFixed( 1 ) : String( w ) );
@@ -1943,6 +2267,8 @@ function cfgQuery() {
 	while ( rev.length && ! rev[ rev.length - 1 ] ) rev.pop();
 	if ( rev.length ) parts.push( `reverse=[${ rev.join( ',' ) }]` );
 	if ( cfg.background !== 'felt' ) parts.push( `background=${ cfg.background }` );
+	if ( cfg.reroll ) parts.push( 'reroll=1' );
+	if ( cfg.reroll && cfg.lock ) parts.push( 'lock=1' );
 	return parts.length ? '?' + parts.join( '&' ) : '';
 }
 function cfgRenderUrl() {
@@ -2048,9 +2374,14 @@ function cfgRenderThemes() {
 		box.appendChild( b );
 	}
 }
+function cfgRenderInteract() {
+	const set = ( id, v ) => { $( '#cfg' + id ).setAttribute( 'aria-checked', String( v ) ); $( '#cfg' + id + 'State' ).textContent = v ? 'On' : 'Off'; $( '#cfg' + id + 'Card' ).classList.toggle( 'on', v ); };
+	set( 'Reroll', cfg.reroll ); set( 'Lock', cfg.reroll && cfg.lock );
+	$( '#cfgLock' ).disabled = ! cfg.reroll; $( '#cfgLockCard' ).style.opacity = cfg.reroll ? '' : '0.45';
+}
 function cfgRenderHq() { $( '#cfgHq' ).setAttribute( 'aria-checked', String( cfg.hq ) ); $( '#cfgHqState' ).textContent = cfg.hq ? 'On' : 'Off'; $( '#cfgHqCard' ).classList.toggle( 'on', cfg.hq ); }
 function openConfig() {
-	cfg = cfgFromParams(); cfg.hq = HQ; cfgRenderHq();
+	cfg = cfgFromParams(); cfg.hq = HQ; cfgRenderHq(); cfgRenderInteract();
 	cfgRenderTray(); cfgRenderWeights(); cfgRenderThemes(); cfgRenderUrl();
 	toggleHistory( false );
 	$( '#config' ).showModal();
@@ -2072,8 +2403,10 @@ function openConfig() {
 	const dlg = $( '#config' );
 	dlg.querySelector( '[data-close]' ).addEventListener( 'click', () => dlg.close() );
 	dlg.addEventListener( 'click', ( e ) => { if ( e.target === dlg ) dlg.close(); } );
-	$( '#cfgReset' ).addEventListener( 'click', () => { cfg = { dice: [ 6 ], reverse: [ null ], weights: {}, loaded: new Set(), background: 'felt', hq: cfg.hq }; cfgRenderTray(); cfgRenderWeights(); cfgRenderThemes(); cfgRenderUrl(); } );
+	$( '#cfgReset' ).addEventListener( 'click', () => { cfg = { dice: [ 6 ], reverse: [ null ], weights: {}, loaded: new Set(), background: 'felt', hq: cfg.hq, reroll: false, lock: false }; cfgRenderTray(); cfgRenderWeights(); cfgRenderThemes(); cfgRenderInteract(); cfgRenderUrl(); } );
 	$( '#cfgHq' ).addEventListener( 'click', () => { cfg.hq = ! cfg.hq; cfgRenderHq(); } );
+	$( '#cfgReroll' ).addEventListener( 'click', () => { cfg.reroll = ! cfg.reroll; if ( ! cfg.reroll ) cfg.lock = false; cfgRenderInteract(); cfgRenderUrl(); } );
+	$( '#cfgLock' ).addEventListener( 'click', () => { if ( ! cfg.reroll ) return; cfg.lock = ! cfg.lock; cfgRenderInteract(); cfgRenderUrl(); } );
 	$( '#cfgApply' ).addEventListener( 'click', () => {
 		const q = cfgQuery(), hqChanged = cfg.hq !== HQ, same = q === location.search || ( ! q && ! location.search );
 		if ( hqChanged ) { try { localStorage.setItem( 'dice.hq', cfg.hq ? '1' : '0' ); } catch ( e ) {} }
@@ -2094,7 +2427,7 @@ function tick() {
 		anim.t += dt; const e = easeInOut( clamp( anim.t / 0.46, 0, 1 ) );
 		meshes.forEach( ( m, i ) => {
 			const a = anim.from[ i ], b = anim.to[ i ];
-			m.position.lerpVectors( a.p, b.p, e ); m.position.y += Math.sin( Math.PI * e ) * 1.4;
+			m.position.lerpVectors( a.p, b.p, e ); m.position.y += Math.sin( Math.PI * e ) * Math.min( 1.4, a.p.distanceTo( b.p ) * 0.5 );
 			m.quaternion.slerpQuaternions( a.q, b.q, e );
 		} );
 		if ( e >= 1 ) { anim.phase = 'play'; anim.t = 0; }
@@ -2120,6 +2453,12 @@ function tick() {
 			d.material.opacity = clamp( 1 - h / 3, 0, 1 );
 			tmpE.setFromQuaternion( m.quaternion, 'YXZ' ); d.rotation.z = tmpE.y + tmpE.x * 0.5;
 		} );
+	}
+	for ( const c of candles ) {
+		const n = Math.sin( now * 9.1 + c.seed ) * 0.5 + Math.sin( now * 15.7 + c.seed * 2.3 ) * 0.3 + Math.sin( now * 23.3 + c.seed * 0.7 ) * 0.2;
+		c.light.intensity = c.base * ( 0.86 + 0.14 * n );
+		c.light.position.set( Math.sin( now * 6.3 + c.seed ) * 0.035, c.ly + Math.sin( now * 8.7 + c.seed ) * 0.025, Math.cos( now * 7.1 + c.seed ) * 0.035 );
+		c.flame.material.uniforms.uFlick.value = n; c.halo.material.opacity = 0.2 + 0.05 * n;
 	}
 	for ( const f of flickers ) f.l.intensity = f.base * ( 0.86 + 0.1 * Math.sin( now * 7.3 + f.seed ) + 0.06 * Math.sin( now * 17.1 + f.seed * 2 ) + 0.04 * Math.sin( now * 31 + f.seed ) );
 	controls.update();
@@ -2153,7 +2492,23 @@ function onResize() {
  * ------------------------------------------------------------------ */
 let down = null;
 canvas.addEventListener( 'pointerdown', ( e ) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; ensureAudio(); } );
-canvas.addEventListener( 'pointerup', ( e ) => { if ( down && Math.hypot( e.clientX - down.x, e.clientY - down.y ) < 6 && performance.now() - down.t < 450 ) roll(); down = null; } );
+const ray = new THREE.Raycaster(), pointerNdc = new THREE.Vector2();
+function dieAt( e ) {
+	const rect = canvas.getBoundingClientRect();
+	pointerNdc.set( ( ( e.clientX - rect.left ) / rect.width ) * 2 - 1, -( ( e.clientY - rect.top ) / rect.height ) * 2 + 1 );
+	ray.setFromCamera( pointerNdc, camera );
+	const hit = ray.intersectObjects( meshes.filter( ( m ) => m.visible ), false )[ 0 ];
+	return hit ? meshes.indexOf( hit.object ) : -1;
+}
+canvas.addEventListener( 'pointerup', ( e ) => {
+	if ( down && Math.hypot( e.clientX - down.x, e.clientY - down.y ) < 6 && performance.now() - down.t < 450 ) {
+		const i = params.reroll && anim.phase === 'done' ? dieAt( e ) : -1;
+		if ( i >= 0 ) rerollDie( i ); else roll();
+	}
+	down = null;
+} );
+// With tap-to-re-roll on, show a pointer over resting dice.
+canvas.addEventListener( 'pointermove', ( e ) => { if ( params.reroll && ! down ) canvas.style.cursor = anim.phase === 'done' && dieAt( e ) >= 0 ? 'pointer' : ''; } );
 $( '#rollBtn' ).addEventListener( 'click', () => roll() );
 $( '#replayBtn' ).addEventListener( 'click', () => replaySlow() );
 const soundBtn = $( '#soundBtn' );
@@ -2162,6 +2517,8 @@ soundBtn.addEventListener( 'click', toggleMute );
 $( '#cfgBtn' ).addEventListener( 'click', () => openConfig() );
 $( '#histBtn' ).addEventListener( 'click', () => toggleHistory() );
 $( '#histClose' ).addEventListener( 'click', () => toggleHistory( false ) );
+// With tap-to-re-roll on, the single-die result card re-rolls the die too.
+$( '#results .solo' ).addEventListener( 'click', () => { if ( params.reroll && types.length === 1 ) rerollDie( 0 ); } );
 // Result badges over the dice can be hidden; the choice is remembered on this device.
 const tagBtn = $( '#tagBtn' );
 let showTags = true;
@@ -2200,7 +2557,7 @@ document.querySelector( 'meta[name="theme-color"]' ).setAttribute( 'content', th
 /* ------------------------------------------------------------------ *
  * Boot
  * ------------------------------------------------------------------ */
-window.__dice = { params, results: null, get types() { return types; } };
+window.__dice = { params, results: null, get types() { return types; }, planNudge: ( i ) => planNudge( i ), planRoll: () => planRoll(), sim: ( seed ) => simulate( seed ) };
 ( async () => {
 	try {
 		const fontReady = Promise.race( [ document.fonts.load( fontStr( 100 ) ).then( () => document.fonts.ready ), new Promise( ( r ) => setTimeout( r, 3000 ) ) ] );
