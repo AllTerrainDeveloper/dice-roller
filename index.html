@@ -1358,6 +1358,15 @@ function paletteToLook( p, themeKey ) {
 	if ( themeKey === 'stone' ) f = ( p.rough ?? 0.3 ) < 0.3 ? 'polished' : 'stone';
 	return { body: p.body, ink, finish: allowedFinish( themeKey, f ) };
 }
+// Near-ground occlusion: surfaces close to the table receive less ambient light (the table
+// blocks it), so the base of dice and rails darkens into the floor instead of glowing.
+const GROUND_AO_VERT = [ '#include <project_vertex>', '#include <project_vertex>\n\tvGroundY = ( modelMatrix * vec4( transformed, 1.0 ) ).y;' ];
+const GROUND_AO_FRAG = '\tfloat gAO = mix( 0.18, 1.0, smoothstep( 0.0, 0.42, vGroundY - groundLevel ) );\n\treflectedLight.indirectDiffuse *= gAO; reflectedLight.indirectSpecular *= mix( 0.45, 1.0, gAO );';
+function addGroundAO( sh, level = 0 ) {
+	sh.uniforms.groundLevel = { value: level };
+	sh.vertexShader = 'varying float vGroundY;\n' + sh.vertexShader.replace( GROUND_AO_VERT[ 0 ], GROUND_AO_VERT[ 1 ] );
+	sh.fragmentShader = 'varying float vGroundY;\nuniform float groundLevel;\n' + sh.fragmentShader.replace( '#include <lights_fragment_end>', '#include <lights_fragment_end>\n' + GROUND_AO_FRAG );
+}
 function makeDieMaterial( pal, type ) {
 	const m = new THREE.MeshPhysicalMaterial( {
 		color: pal.body, roughness: pal.rough ?? 0.3, metalness: pal.metal ?? 0,
@@ -1382,8 +1391,12 @@ function makeDieMaterial( pal, type ) {
 			.replace( '#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n\tmetalnessFactor = mix( metalnessFactor, inkMetal, inkMask );' )
 			.replace( '#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += inkEmissive * inkMask;' )
 			.replace( '#include <transmission_fragment>', THREE.ShaderChunk.transmission_fragment.replace( 'material.transmission = transmission;', 'material.transmission = transmission * ( 1.0 - inkMask );' ) );
+		// On the uneven stone court the table sits a little higher on average.
+		addGroundAO( sh, theme.stone ? 0.07 : 0 );
 	};
-	m.customProgramCacheKey = () => 'die-ink-v1';
+	// Front faces cast the shadow, so it starts exactly where the die meets the table.
+	m.shadowSide = THREE.FrontSide;
+	m.customProgramCacheKey = () => 'die-ink-v2';
 	return m;
 }
 
@@ -1861,7 +1874,11 @@ function buildCrystalDecor( hx, hz ) {
 }
 function buildRails( hx, hz ) {
 	railGroup.clear();
-	railMat = railMat || railMaterial();
+	if ( ! railMat ) {
+		railMat = railMaterial(); railMat.shadowSide = THREE.FrontSide;
+		railMat.onBeforeCompile = ( sh ) => addGroundAO( sh );
+		railMat.customProgramCacheKey = () => 'rail-ao-' + params.background;
+	}
 	const [ H, T, B, RC ] = RAIL;
 	// Outer and inner rounded rectangles share one centre, so every corner is a true concentric curve.
 	const shape = new THREE.Shape( roundedRectPts( hx + T - B, hz + T - B, RC + T - B ) );
@@ -2840,7 +2857,7 @@ document.querySelector( 'meta[name="theme-color"]' ).setAttribute( 'content', th
 /* ------------------------------------------------------------------ *
  * Boot
  * ------------------------------------------------------------------ */
-window.__dice = { params, results: null, get types() { return types; }, get scene() { return scene; }, get renderer() { return renderer; }, planNudge: ( i ) => planNudge( i ), planRoll: () => planRoll(), sim: ( seed ) => simulate( seed ) };
+window.__dice = { params, results: null, get types() { return types; }, get scene() { return scene; }, get camera() { return camera; }, get controls() { return controls; }, get renderer() { return renderer; }, planNudge: ( i ) => planNudge( i ), planRoll: () => planRoll(), sim: ( seed ) => simulate( seed ) };
 ( async () => {
 	try {
 		const fontReady = Promise.race( [ document.fonts.load( fontStr( 100 ) ).then( () => document.fonts.ready ), new Promise( ( r ) => setTimeout( r, 3000 ) ) ] );
