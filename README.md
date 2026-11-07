@@ -20,6 +20,7 @@
 - **Medieval Castle:** a dark oak table in a castle hall lit by four wax candles near the corners, each with a living flame and its own flickering, shadow-casting light, so the shadows shake.
 - **Tap to re-roll** (`reroll=1`): tap a die, or its result chip, and it jumps high with a random direction and spin. Real physics against the other dice, so the dice it hits can change too. With `lock=1`, settled dice become immovable obstacles and keep their results.
 - **Physically based rendering** with three.js: clearcoat resin, glass with dispersion, metal and pearlescent dice, engraved numbers, soft shadows and mirror floors.
+- **Per-die styling.** Tap a die's shape in the setup dialog to pick its finish, body colour and number colour. Each table offers its own materials (Stone Age: carved stone, polished stone, bone; Crystal Palace: gem, clear crystal, opal; Synthwave: neon ink, glossy, smoked glass; and so on).
 - **Setup dialog.** Build any configuration visually. It only writes the query string, so every setup is a shareable link.
 - **Roll history.** Every roll is recorded frame by frame and can be replayed at real speed or in slow motion, or cleared.
 - **Result badges** over each die can be hidden with one button.
@@ -39,6 +40,7 @@ The page is configured entirely through its query string. With no parameters it 
 | `reverse` | `reverse=[2,4,6]` | Results to land on, in dice order. Use `0` for a die that should roll freely, e.g. `reverse=[0,20]`. |
 | `background` | `background=crystal` | `felt`, `wood`, `marble`, `cosmos`, `neon`, `velvet`, `crystal`, `stone`, `medieval` (or `1`–`9`). |
 | `reroll` | `reroll=1` | Tap a die (or its result chip) to re-roll just that die. Re-rolls are pure physics: forced results and weights don't apply to them. |
+| `look` | `look=[c1121f-ffffff-glass,0,1f5fe0-gold-polished]` | Per-die style, in dice order: body colour, number colour (hex, `gold`, `silver` or `auto`) and finish. `0` keeps the table's default. Finishes: `gloss`, `matte`, `metal`, `pearl`, `glass`, `gem`, `stone`, `polished`, `neon`; a finish the table doesn't offer falls back to its closest material. |
 | `lock` | `lock=1` | With `reroll=1`: settled dice can't be moved; re-rolled dice bounce off them. |
 
 Examples:

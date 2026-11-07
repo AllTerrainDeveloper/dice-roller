@@ -130,7 +130,7 @@ dialog.sheet { width: min(96vw, 780px); max-width: none; max-height: min(92vh, 9
 dialog.sheet[open] { animation: sheetIn .5s cubic-bezier(.2,1.15,.3,1); }
 @keyframes sheetIn { from { opacity: 0; transform: translateY(28px) scale(.96); } to { opacity: 1; transform: none; } }
 dialog.sheet::backdrop { background: rgba(0,0,0,.5); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-.cfg { display: flex; flex-direction: column; max-height: min(92vh, 920px); }
+.cfg { position: relative; display: flex; flex-direction: column; max-height: min(92vh, 920px); }
 .cfg > header { display: flex; justify-content: space-between; gap: 16px; padding: 24px 24px 18px; background: radial-gradient(120% 160% at 0% 0%, color-mix(in oklab, var(--accent) 24%, transparent), transparent 62%); border-bottom: 1px solid var(--stroke); }
 .cfg h2 { margin: 0; font-size: 23px; letter-spacing: -.01em; }
 .cfg > header p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; max-width: 54ch; }
@@ -154,7 +154,48 @@ dialog.sheet::backdrop { background: rgba(0,0,0,.5); backdrop-filter: blur(6px);
 @keyframes pop { from { opacity: 0; transform: scale(.86); } }
 .dcard.forced { border-color: color-mix(in oklab, var(--accent) 65%, transparent); background: linear-gradient(160deg, color-mix(in oklab, var(--accent) 18%, transparent), rgba(255,255,255,.02)); }
 .dcard .top { display: flex; align-items: center; gap: 10px; padding-right: 22px; }
-.dcard .shape { width: 44px; height: 44px; flex: none; color: var(--c); filter: drop-shadow(0 6px 10px rgba(0,0,0,.35)); }
+.dcard .shape { position: relative; width: 46px; height: 46px; flex: none; padding: 0; border: 0; border-radius: 12px; background: none; cursor: pointer; filter: drop-shadow(0 6px 10px rgba(0,0,0,.35)); transition: transform .25s cubic-bezier(.2,1.4,.4,1); }
+.dcard .shape svg { width: 100%; height: 100%; }
+.dcard .shape:hover { transform: scale(1.1) rotate(-6deg); }
+.dcard .shape:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.dcard .shape .brush { position: absolute; right: -6px; bottom: -5px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: var(--accent); color: var(--btn-fg); box-shadow: 0 3px 8px rgba(0,0,0,.35); transform: scale(.85); transition: transform .25s cubic-bezier(.2,1.4,.4,1); }
+.dcard .shape:hover .brush { transform: scale(1.05); }
+.dcard .shape .brush svg { width: 11px; height: 11px; }
+.custom-tag { margin-left: 6px; padding: 2px 6px; border-radius: 999px; background: color-mix(in oklab, var(--accent) 22%, transparent); color: var(--text); font: 600 9.5px var(--ui-font); font-style: normal; letter-spacing: .1em; text-transform: uppercase; vertical-align: 3px; }
+.stylepop { position: absolute; inset: 0; z-index: 6; display: flex; align-items: flex-end; justify-content: center; background: rgba(0,0,0,.45); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); opacity: 0; transition: opacity .25s ease; }
+.stylepop.open { opacity: 1; }
+.stylepop[hidden] { display: none; }
+.sp-card { width: 100%; max-height: 88%; display: flex; flex-direction: column; border-radius: 24px 24px 0 0; border-top: 1px solid var(--stroke); background: color-mix(in oklab, var(--bg) 66%, black); box-shadow: 0 -24px 60px rgba(0,0,0,.45); transform: translateY(40px); transition: transform .5s cubic-bezier(.2,1.15,.3,1); }
+.stylepop.open .sp-card { transform: none; }
+.sp-card > header { display: flex; align-items: center; gap: 14px; padding: 18px 20px 12px; }
+.sp-card > header .x { margin-left: auto; align-self: flex-start; }
+.sp-prev { width: 88px; height: 88px; flex: none; display: grid; place-items: center; border-radius: 22px; border: 1px solid var(--stroke); background: radial-gradient(circle at 50% 38%, rgba(255,255,255,.16), rgba(255,255,255,.02) 70%); }
+.sp-prev svg { width: 68px; height: 68px; filter: drop-shadow(0 10px 16px rgba(0,0,0,.45)); animation: lookIn .5s cubic-bezier(.2,1.3,.4,1); }
+@keyframes lookIn { from { transform: rotate(-18deg) scale(.8); opacity: .3; } }
+.sp-card h3 { display: block; margin: 0; font-size: 18px; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--text); }
+.sp-card header p { margin: 4px 0 0; font-size: 12.5px; color: var(--muted); }
+.sp-body { overflow: auto; display: grid; gap: 18px; padding: 4px 20px 18px; }
+.sp-body h4 { margin: 0 0 9px; font-size: 10.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+.seg { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; }
+.seg button { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 10px 4px 9px; border-radius: 14px; border: 1px solid var(--stroke); background: rgba(255,255,255,.04); color: var(--text); font: 600 11.5px var(--ui-font); cursor: pointer; transition: background .2s, border-color .2s, transform .15s; }
+.seg button:hover { background: rgba(255,255,255,.09); transform: translateY(-1px); }
+.seg button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in oklab, var(--accent) 18%, transparent); }
+.seg .ball { width: 30px; height: 30px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255,255,255,.25), 0 3px 8px rgba(0,0,0,.35); }
+.sw-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.sw-label { margin-right: 2px; font-size: 11px; color: var(--muted); }
+.sw-sep { width: 100%; height: 0; }
+.swatch { position: relative; width: 32px; height: 32px; border: 0; border-radius: 50%; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255,255,255,.25), 0 2px 6px rgba(0,0,0,.3); transition: transform .18s cubic-bezier(.2,1.4,.4,1), box-shadow .2s; }
+.swatch:hover { transform: scale(1.12); }
+.swatch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+.swatch.auto { background: linear-gradient(135deg, #fbf8f2 50%, #17171a 50%); }
+.swatch.gold { background: linear-gradient(135deg, #fff2c4, #d9b25f 45%, #8a6420 60%, #f3d68a); }
+.swatch.silver { background: linear-gradient(135deg, #ffffff, #c9ced6 45%, #6f7680 60%, #eef1f5); }
+.swatch.custom { overflow: hidden; background: conic-gradient(#ff4d4d, #ffd24d, #4dff88, #4dc3ff, #9a4dff, #ff4dd2, #ff4d4d); }
+.swatch.custom input { position: absolute; inset: -6px; width: calc(100% + 12px); height: calc(100% + 12px); opacity: 0; cursor: pointer; }
+.sp-card > footer { display: flex; justify-content: space-between; gap: 10px; padding: 12px 20px 18px; border-top: 1px solid var(--stroke); }
+.sp-card > footer .btn2[disabled] { opacity: .45; cursor: default; }
+
 .dcard .nm { font: 700 18px/1.1 var(--num-font); }
 .dcard .nm small { display: block; margin-top: 3px; font: 500 11px var(--ui-font); color: var(--muted); }
 .dcard .rm { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; }
@@ -366,6 +407,21 @@ dialog.sheet { width: 100vw; max-height: 94vh; margin: auto 0 0; border-radius: 
 			<div class="urlbar"><code id="cfgUrl"></code><button type="button" class="chipb" id="cfgCopy">Copy link</button></div>
 			<div class="actions"><button type="button" class="btn2" id="cfgReset">Start over</button><button type="button" class="btn1" id="cfgApply">Roll with this setup</button></div>
 		</footer>
+		<div class="stylepop" id="stylePop" hidden>
+			<div class="sp-card" role="dialog" aria-modal="true" aria-labelledby="spTitle">
+				<header>
+					<div class="sp-prev" id="spPrev"></div>
+					<div><h3 id="spTitle">Style</h3><p id="spSub"></p></div>
+					<button class="x" type="button" id="spClose" aria-label="Close style">✕</button>
+				</header>
+				<div class="sp-body">
+					<section><h4>Finish</h4><div class="seg" id="spFinish"></div></section>
+					<section><h4>Body colour</h4><div class="sw-row" id="spBody"></div></section>
+					<section><h4>Numbers</h4><div class="sw-row" id="spInk"></div></section>
+				</div>
+				<footer><button type="button" class="btn2" id="spReset">Use table style</button><button type="button" class="btn1" id="spDone">Done</button></footer>
+			</div>
+		</div>
 	</div>
 </dialog>
 
@@ -429,6 +485,25 @@ function toast( msg ) {
 /* ------------------------------------------------------------------ *
  * Query parameters (the only configuration surface)
  * ------------------------------------------------------------------ */
+const FINISHES = [ 'gloss', 'matte', 'metal', 'pearl', 'glass', 'gem', 'stone', 'polished', 'neon' ];
+// Each table offers its own materials (first one is the fallback for anything else).
+const THEME_FINISHES = {
+	felt: [ [ 'gloss', 'Glossy resin' ], [ 'matte', 'Matte' ], [ 'glass', 'Translucent' ], [ 'pearl', 'Pearl' ] ],
+	wood: [ [ 'gloss', 'Lacquered' ], [ 'matte', 'Bone' ], [ 'metal', 'Brass & iron' ], [ 'glass', 'Amber resin' ] ],
+	marble: [ [ 'gloss', 'Glazed' ], [ 'matte', 'Matte' ], [ 'metal', 'Metal' ], [ 'pearl', 'Pearl' ] ],
+	cosmos: [ [ 'gem', 'Gem' ], [ 'glass', 'Glass' ], [ 'gloss', 'Glossy' ] ],
+	neon: [ [ 'neon', 'Neon ink' ], [ 'gloss', 'Glossy' ], [ 'glass', 'Smoked glass' ] ],
+	velvet: [ [ 'pearl', 'Pearl' ], [ 'metal', 'Gold & metal' ], [ 'gem', 'Jewel' ], [ 'gloss', 'Enamel' ] ],
+	crystal: [ [ 'gem', 'Gem' ], [ 'glass', 'Clear crystal' ], [ 'pearl', 'Opal' ] ],
+	stone: [ [ 'stone', 'Carved stone' ], [ 'polished', 'Polished stone' ], [ 'matte', 'Bone' ] ],
+	medieval: [ [ 'gloss', 'Lacquered' ], [ 'matte', 'Bone' ], [ 'metal', 'Forged metal' ], [ 'glass', 'Amber glass' ] ],
+};
+const FINISH_NEAR = { gloss: [ 'polished', 'neon', 'pearl' ], matte: [ 'stone' ], metal: [ 'gloss' ], pearl: [ 'gloss', 'polished' ], glass: [ 'gem', 'gloss' ], gem: [ 'glass', 'gloss' ], stone: [ 'matte' ], polished: [ 'gloss' ], neon: [ 'gloss' ] };
+function allowedFinish( themeKey, f ) {
+	const ok = THEME_FINISHES[ themeKey ].map( ( x ) => x[ 0 ] );
+	if ( ok.includes( f ) ) return f;
+	return ( FINISH_NEAR[ f ] || [] ).find( ( x ) => ok.includes( x ) ) || ok[ 0 ];
+}
 const params = ( () => {
 	const Q = new URLSearchParams( location.search );
 	const get = ( ...names ) => { for ( const [ k, v ] of Q ) if ( names.includes( k.toLowerCase() ) ) return v; return null; };
@@ -482,7 +557,19 @@ const params = ( () => {
 	if ( ! background ) { warnings.push( `Unknown background "${ bgRaw }". Use felt, wood, marble, cosmos, neon, velvet, crystal, stone or medieval.` ); background = 'felt'; }
 	const on = ( v ) => /^(1|true|on|yes)$/i.test( String( v ?? '' ).trim() );
 	const reroll = on( get( 'reroll', 'tap' ) ), lock = reroll && on( get( 'lock' ) );
-	return { dice, weights, reverse, background, reroll, lock, warnings };
+	// look=[c1121f-ffffff-glass,0,…]: per-die body colour, number colour (hex, gold, silver or auto) and finish.
+	const look = dice.map( () => null );
+	const lookRaw = get( 'look', 'style', 'colors' );
+	if ( lookRaw ) {
+		const hex = ( x ) => /^[0-9a-f]{3}([0-9a-f]{3})?$/i.test( x || '' );
+		lookRaw.replace( /[\[\]\s#]/g, '' ).split( ',' ).forEach( ( it, i ) => {
+			if ( i >= dice.length || ! it || it === '0' ) return;
+			const [ b, k, f ] = it.split( '-' );
+			if ( ! hex( b ) ) return;
+			look[ i ] = { body: '#' + b.toLowerCase(), ink: hex( k ) ? '#' + k.toLowerCase() : k === 'gold' || k === 'silver' ? k : null, finish: FINISHES.includes( f ) ? f : 'gloss' };
+		} );
+	}
+	return { dice, weights, reverse, background, reroll, lock, look, warnings };
 } )();
 
 /* ------------------------------------------------------------------ *
@@ -1232,6 +1319,32 @@ function readFace( type, q ) {
 /* ------------------------------------------------------------------ *
  * Dice materials: PBR resin / glass / metal with engraved ink
  * ------------------------------------------------------------------ */
+const INK_METAL = { gold: '#d9b25f', silver: '#d8dde4' };
+const srgbLum = ( hex ) => { const c = parseInt( hex.slice( 1 ).length === 3 ? hex.slice( 1 ).replace( /./g, '$&$&' ) : hex.slice( 1 ), 16 ); return ( ( c >> 16 & 255 ) * 0.299 + ( c >> 8 & 255 ) * 0.587 + ( c & 255 ) * 0.114 ) / 255; };
+const lookInk = ( l ) => INK_METAL[ l.ink ] || l.ink || ( srgbLum( l.body ) > 0.55 ? '#17171a' : '#fbf8f2' );
+// Turns a chosen look (colour + finish) into the same material description the tables use.
+function lookToPalette( l ) {
+	const metalInk = !! INK_METAL[ l.ink ], atten = '#' + new THREE.Color( l.body ).multiplyScalar( 0.85 ).getHexString();
+	const p = { body: l.body, ink: lookInk( l ), inkMetal: metalInk ? 1 : 0, inkRough: metalInk ? 0.25 : 0.55 };
+	switch ( l.finish ) {
+		case 'matte': return { ...p, rough: 0.78, clearcoat: 0 };
+		case 'metal': return { ...p, metal: 1, rough: 0.26, clearcoat: 0 };
+		case 'pearl': return { ...p, rough: 0.22, iridescence: 0.9 };
+		case 'glass': return { ...p, transmission: 0.93, rough: 0.04, thickness: 1.2, atten, attenDist: 1.6 };
+		case 'gem': return { ...p, transmission: 1, rough: 0.02, thickness: 1.6, atten, attenDist: 3.2, dispersion: 1.1, ior: 1.9, glow: 0.35 };
+		case 'stone': return { ...p, rough: 0.62, clearcoat: 0.12 };
+		case 'polished': return { ...p, rough: 0.2, clearcoat: 0.7 };
+		case 'neon': return { ...p, rough: 0.16, clearcoat: 1, glow: 1.6 };
+		default: return { ...p, rough: 0.28, clearcoat: 1 };
+	}
+}
+// The reverse: describe a table's built-in dice style as a look, to start editing from.
+function paletteToLook( p, themeKey ) {
+	const ink = p.inkMetal ? ( srgbLum( p.ink ) > 0.62 && ! /[a-f][0-9a-f][4-9]/i.test( p.ink.slice( 5 ) ) ? 'silver' : 'gold' ) : p.ink;
+	let f = p.transmission ? ( p.dispersion ? 'gem' : 'glass' ) : p.metal ? 'metal' : p.iridescence ? 'pearl' : p.glow ? 'neon' : ( p.rough ?? 0.3 ) > 0.6 ? 'matte' : 'gloss';
+	if ( themeKey === 'stone' ) f = ( p.rough ?? 0.3 ) < 0.3 ? 'polished' : 'stone';
+	return { body: p.body, ink, finish: allowedFinish( themeKey, f ) };
+}
 function makeDieMaterial( pal, type ) {
 	const m = new THREE.MeshPhysicalMaterial( {
 		color: pal.body, roughness: pal.rough ?? 0.3, metalness: pal.metal ?? 0,
@@ -2087,7 +2200,7 @@ function makeDice() {
 		return typeCache.get( N );
 	} );
 	const pal = theme.dice;
-	palettes = types.map( ( t, i ) => pal[ i % pal.length ] );
+	palettes = types.map( ( t, i ) => ( params.look[ i ] ? lookToPalette( { ...params.look[ i ], finish: allowedFinish( params.background, params.look[ i ].finish ) } ) : pal[ i % pal.length ] ) );
 	meshes = types.map( ( t, i ) => {
 		const geo = theme.stone ? t.geometry.clone().scale( 0.97 + 0.06 * Math.random(), 0.97 + 0.06 * Math.random(), 0.97 + 0.06 * Math.random() ) : t.geometry;
 		const m = new THREE.Mesh( geo, makeDieMaterial( palettes[ i ], t ) );
@@ -2229,6 +2342,88 @@ const THEME_PV = {
 };
 const MAXW = 12;
 let cfg = null;
+function dieShape( N ) {
+	const fc = N % 2 ? 2 * N : N, n = fc / 2;
+	let s;
+	if ( fc === 2 ) s = '<circle cx="20" cy="20" r="16"/>';
+	else if ( fc === 4 ) s = '<path d="M20 3.5 L37 34.5 H3 Z"/>';
+	else if ( fc === 6 ) s = '<rect x="5" y="5" width="30" height="30" rx="7"/>';
+	else if ( fc === 8 ) s = '<path d="M20 2 L37 20 L20 38 L3 20 Z"/>';
+	else if ( fc === 12 ) s = '<path d="M20 2 L38 15 L31 37 H9 L2 15 Z"/>';
+	else if ( fc === 20 ) s = '<path d="M20 1.5 L37 11 V29 L20 38.5 L3 29 V11 Z"/>';
+	else if ( n % 2 ) s = '<path d="M20 2 L36 17 L20 38 L4 17 Z"/>';
+	else s = '<path d="M20 1.5 L33 20 L20 38.5 L7 20 Z"/>';
+	return { s, fs: String( N ).length > 2 ? 10 : 12.5, y: fc === 4 ? 29 : 24.5 };
+}
+// A die icon drawn with its colour, number colour and finish (gloss, matte, metal, pearl, glass, gem).
+let iconSeq = 0;
+function lookIcon( N, l ) {
+	const { s, fs, y } = dieShape( N ), id = 'lk' + ( ++iconSeq ), ink = lookInk( l ), clear = l.finish === 'glass' || l.finish === 'gem';
+	const fx = {
+		gloss: `<radialGradient id="${ id }" cx="35%" cy="25%" r="60%"><stop offset="0" stop-color="#fff" stop-opacity=".7"/><stop offset=".45" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity=".18"/></radialGradient>`,
+		matte: `<linearGradient id="${ id }" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity=".22"/></linearGradient>`,
+		metal: `<linearGradient id="${ id }" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".65"/><stop offset=".42" stop-color="#fff" stop-opacity=".05"/><stop offset=".55" stop-color="#000" stop-opacity=".4"/><stop offset=".8" stop-color="#fff" stop-opacity=".25"/><stop offset="1" stop-color="#000" stop-opacity=".2"/></linearGradient>`,
+		pearl: `<linearGradient id="${ id }" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd1ea" stop-opacity=".55"/><stop offset=".35" stop-color="#cfe6ff" stop-opacity=".45"/><stop offset=".65" stop-color="#d9ffe9" stop-opacity=".4"/><stop offset="1" stop-color="#fff2c9" stop-opacity=".45"/></linearGradient>`,
+		glass: `<radialGradient id="${ id }" cx="32%" cy="22%" r="70%"><stop offset="0" stop-color="#fff" stop-opacity=".85"/><stop offset=".25" stop-color="#fff" stop-opacity=".12"/><stop offset="1" stop-color="#fff" stop-opacity=".25"/></radialGradient>`,
+		stone: `<linearGradient id="${ id }" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></linearGradient>`,
+		polished: `<radialGradient id="${ id }" cx="35%" cy="25%" r="60%"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".45" stop-color="#fff" stop-opacity=".06"/><stop offset="1" stop-color="#000" stop-opacity=".25"/></radialGradient>`,
+		neon: `<radialGradient id="${ id }" cx="35%" cy="25%" r="60%"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".45" stop-color="#fff" stop-opacity=".05"/><stop offset="1" stop-color="#000" stop-opacity=".2"/></radialGradient><filter id="${ id }g" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.4"/></filter>`,
+		gem: `<linearGradient id="${ id }" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".2" stop-color="#9ff" stop-opacity=".2"/><stop offset=".45" stop-color="#f9f" stop-opacity=".25"/><stop offset=".7" stop-color="#ff9" stop-opacity=".2"/><stop offset="1" stop-color="#fff" stop-opacity=".5"/></linearGradient>`,
+	}[ l.finish ];
+	const sparkle = ( l.finish === 'gem' ? '<path d="M12 9 l1 3 l3 1 l-3 1 l-1 3 l-1 -3 l-3 -1 l3 -1z" fill="#fff" opacity=".9"/>' : '' ) +
+		( l.finish === 'neon' ? `<text x="20" y="${ y }" text-anchor="middle" font-size="${ fs }" font-weight="800" font-family="Outfit, Inter, sans-serif" fill="${ ink }" filter="url(#${ id }g)">${ N }</text>` : '' );
+	return `<svg viewBox="0 0 40 40" aria-hidden="true"><defs>${ fx }</defs><g fill="${ l.body }" fill-opacity="${ clear ? 0.55 : 1 }" stroke="rgba(255,255,255,${ clear ? 0.75 : 0.4 })" stroke-width="1.3" stroke-linejoin="round">${ s }</g><g fill="url(#${ id })">${ s }</g>${ sparkle }<text x="20" y="${ y }" text-anchor="middle" font-size="${ fs }" font-weight="800" font-family="Outfit, Inter, sans-serif" fill="${ ink }" stroke="rgba(0,0,0,${ srgbLum( ink ) > 0.5 ? 0.4 : 0 })" stroke-width="2" paint-order="stroke">${ N }</text></svg>`;
+}
+const ICON_BRUSH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18.4 2.6a2 2 0 0 1 2.9 2.9L11 15.8 8.2 13z"/><path d="M7 14.2c-2 0-3.4 1.6-3.4 3.4 0 1.4-.8 2.3-1.6 2.8 1 .9 2.4 1.4 3.9 1.4 2.5 0 4.5-2 4.5-4.5 0-1.7-1.5-3.1-3.4-3.1z"/></svg>';
+const finishLabel = ( f ) => ( THEME_FINISHES[ cfg.background ].find( ( x ) => x[ 0 ] === f ) || [ f, f ] )[ 1 ];
+const CLASSIC = [ '#c1121f', '#f2eee4', '#141417', '#1f5fe0', '#0e6e48', '#e8a21c', '#6a2db8', '#ff6fa8', '#20b8c0', '#ffffff', '#8a5a2b', '#9aa3ad' ];
+function finishBall( c, f ) {
+	const hl = 'radial-gradient(circle at 34% 28%, rgba(255,255,255,.85) 0 7%, rgba(255,255,255,0) 30%)';
+	return {
+		gloss: `${ hl }, ${ c }`, matte: c,
+		metal: `linear-gradient(135deg, color-mix(in oklab, ${ c } 45%, white), ${ c } 42%, color-mix(in oklab, ${ c } 55%, black) 58%, color-mix(in oklab, ${ c } 70%, white))`,
+		pearl: `${ hl }, conic-gradient(from 120deg, rgba(255,190,225,.5), rgba(180,220,255,.5), rgba(200,255,225,.5), rgba(255,190,225,.5)), ${ c }`,
+		glass: `${ hl }, color-mix(in oklab, ${ c } 50%, transparent)`,
+		gem: `${ hl }, conic-gradient(from 0deg, rgba(255,255,255,.35), rgba(150,255,255,.25), rgba(255,150,255,.3), rgba(255,255,150,.25), rgba(255,255,255,.35)), color-mix(in oklab, ${ c } 60%, transparent)`,
+		stone: `radial-gradient(circle at 30% 35%, rgba(255,255,255,.18) 0 2px, transparent 3px), radial-gradient(circle at 65% 60%, rgba(0,0,0,.25) 0 2px, transparent 3px), radial-gradient(circle at 45% 75%, rgba(255,255,255,.12) 0 1.5px, transparent 2.5px), radial-gradient(circle at 70% 30%, rgba(0,0,0,.2) 0 1.5px, transparent 2.5px), linear-gradient(160deg, color-mix(in oklab, ${ c } 85%, white), color-mix(in oklab, ${ c } 80%, black))`,
+		polished: `radial-gradient(circle at 34% 28%, rgba(255,255,255,.7) 0 6%, rgba(255,255,255,0) 26%), linear-gradient(160deg, color-mix(in oklab, ${ c } 88%, white), color-mix(in oklab, ${ c } 75%, black))`,
+		neon: `radial-gradient(circle at 34% 28%, rgba(255,255,255,.6) 0 5%, rgba(255,255,255,0) 22%), radial-gradient(circle, transparent 50%, color-mix(in oklab, var(--accent) 90%, transparent) 55%, transparent 64%), ${ c }`,
+	}[ f ];
+}
+let spIndex = -1;
+const styleBase = ( i ) => ( cfg.look[ i ] ? { ...cfg.look[ i ], finish: allowedFinish( cfg.background, cfg.look[ i ].finish ) } : paletteToLook( THEMES[ cfg.background ].dice[ i % THEMES[ cfg.background ].dice.length ], cfg.background ) );
+function setLook( patch ) { cfg.look[ spIndex ] = { ...styleBase( spIndex ), ...patch }; renderStyle(); cfgRenderTray(); cfgRenderUrl(); }
+function renderStyle() {
+	const i = spIndex, N = cfg.dice[ i ], l = styleBase( i ), custom = !! cfg.look[ i ];
+	$( '#spPrev' ).innerHTML = lookIcon( N, l );
+	$( '#spTitle' ).textContent = `Style · d${ N }`;
+	$( '#spSub' ).textContent = custom ? `${ finishLabel( l.finish ) } · custom colours` : `Using the ${ THEMES[ cfg.background ].name } style`;
+	$( '#spFinish' ).innerHTML = THEME_FINISHES[ cfg.background ].map( ( [ f, label ] ) => `<button type="button" data-f="${ f }" aria-pressed="${ l.finish === f }"><span class="ball" style="background:${ finishBall( l.body, f ) }"></span>${ label }</button>` ).join( '' );
+	$( '#spFinish' ).querySelectorAll( 'button' ).forEach( ( b ) => b.addEventListener( 'click', () => setLook( { finish: b.dataset.f } ) ) );
+	const themeCols = [ ...new Set( THEMES[ cfg.background ].dice.map( ( p ) => p.body.toLowerCase() ) ) ];
+	const sw = ( c, label, pressed, extra = '' ) => `<button type="button" class="swatch ${ extra }" data-c="${ c }" title="${ label }" aria-label="${ label }" aria-pressed="${ pressed }" style="background:${ finishBall( c, l.finish ) }"></button>`;
+	const custom1 = ! themeCols.includes( l.body ) && ! CLASSIC.includes( l.body );
+	$( '#spBody' ).innerHTML = `<span class="sw-label">Table</span>${ themeCols.map( ( c ) => sw( c, 'Table colour ' + c, l.body === c ) ).join( '' ) }<span class="sw-sep"></span><span class="sw-label">Classic</span>${ CLASSIC.map( ( c ) => sw( c, 'Colour ' + c, l.body === c ) ).join( '' ) }<label class="swatch custom" title="Any colour" aria-pressed="${ custom1 }"><input type="color" value="${ l.body.length === 7 ? l.body : '#888888' }" aria-label="Pick any body colour"></label>`;
+	$( '#spBody' ).querySelectorAll( 'button.swatch' ).forEach( ( b ) => b.addEventListener( 'click', () => setLook( { body: b.dataset.c } ) ) );
+	$( '#spBody' ).querySelector( 'input' ).addEventListener( 'input', ( e ) => setLook( { body: e.target.value.toLowerCase() } ) );
+	const inks = [ [ null, 'Auto contrast', 'auto' ], [ '#fbf8f2', 'White' ], [ '#17171a', 'Black' ], [ 'gold', 'Gold', 'gold' ], [ 'silver', 'Silver', 'silver' ], [ '#d32f2f', 'Red' ] ];
+	const customInk = l.ink && l.ink[ 0 ] === '#' && ! inks.some( ( [ v ] ) => v === l.ink );
+	$( '#spInk' ).innerHTML = inks.map( ( [ v, label, cls ] ) => `<button type="button" class="swatch ${ cls || '' }" data-v="${ v ?? '' }" title="${ label }" aria-label="${ label } numbers" aria-pressed="${ ( l.ink ?? null ) === v }"${ cls ? '' : ` style="background:${ v }"` }></button>` ).join( '' ) +
+		`<label class="swatch custom" title="Any colour" aria-pressed="${ customInk }"><input type="color" value="${ l.ink && l.ink[ 0 ] === '#' ? l.ink : '#ffffff' }" aria-label="Pick any number colour"></label>`;
+	$( '#spInk' ).querySelectorAll( 'button.swatch' ).forEach( ( b ) => b.addEventListener( 'click', () => setLook( { ink: b.dataset.v || null } ) ) );
+	$( '#spInk' ).querySelector( 'input' ).addEventListener( 'input', ( e ) => setLook( { ink: e.target.value.toLowerCase() } ) );
+	$( '#spReset' ).disabled = ! custom;
+}
+function openStyle( i ) {
+	spIndex = i; renderStyle();
+	const pop = $( '#stylePop' ); pop.hidden = false; requestAnimationFrame( () => pop.classList.add( 'open' ) );
+	setTimeout( () => $( '#spDone' ).focus(), 50 );
+}
+function closeStyle() {
+	const pop = $( '#stylePop' ); if ( pop.hidden ) return false;
+	pop.classList.remove( 'open' ); setTimeout( () => { pop.hidden = true; }, 260 );
+	return true;
+}
 function dieIcon( N ) {
 	const fc = N % 2 ? 2 * N : N, n = fc / 2;
 	let s;
@@ -2253,6 +2448,7 @@ function cfgFromParams() {
 		dice: params.dice.slice(), reverse: params.reverse.slice(),
 		weights: Object.fromEntries( Object.entries( params.weights ).map( ( [ k, v ] ) => [ k, v.slice() ] ) ),
 		loaded: new Set( Object.keys( params.weights ).map( Number ) ), background: params.background, reroll: params.reroll, lock: params.lock,
+		look: params.look.map( ( l ) => ( l ? { ...l } : null ) ),
 	};
 }
 const fmtW = ( w ) => ( w % 1 ? w.toFixed( 1 ) : String( w ) );
@@ -2269,6 +2465,9 @@ function cfgQuery() {
 	if ( cfg.background !== 'felt' ) parts.push( `background=${ cfg.background }` );
 	if ( cfg.reroll ) parts.push( 'reroll=1' );
 	if ( cfg.reroll && cfg.lock ) parts.push( 'lock=1' );
+	const lk = cfg.look.slice( 0, d.length ).map( ( l ) => ( l ? `${ l.body.slice( 1 ) }-${ l.ink ? ( l.ink[ 0 ] === '#' ? l.ink.slice( 1 ) : l.ink ) : 'auto' }-${ l.finish }` : '0' ) );
+	while ( lk.length && lk[ lk.length - 1 ] === '0' ) lk.pop();
+	if ( lk.length ) parts.push( `look=[${ lk.join( ',' ) }]` );
 	return parts.length ? '?' + parts.join( '&' ) : '';
 }
 function cfgRenderUrl() {
@@ -2279,7 +2478,7 @@ function cfgAddDie( N ) {
 	N = Math.round( Number( N ) );
 	if ( ! ( N >= 2 && N <= 100 ) ) { toast( 'Dice can have 2 to 100 sides.' ); return; }
 	if ( cfg.dice.length >= 30 ) { toast( 'Up to 30 dice per roll.' ); return; }
-	cfg.dice.push( N ); cfg.reverse.push( null );
+	cfg.dice.push( N ); cfg.reverse.push( null ); cfg.look.push( null );
 	cfgRenderTray(); cfgRenderWeights(); cfgRenderUrl();
 }
 function cfgRenderTray() {
@@ -2291,13 +2490,14 @@ function cfgRenderTray() {
 	cfg.dice.forEach( ( N, i ) => {
 		const card = document.createElement( 'div' );
 		card.className = 'dcard' + ( cfg.reverse[ i ] ? ' forced' : '' );
-		card.style.setProperty( '--c', pal[ i % pal.length ].body );
+		card.style.setProperty( '--c', ( cfg.look[ i ] || pal[ i % pal.length ] ).body );
 		const opts = [ '<option value="">Random roll</option>' ];
 		for ( let f = 1; f <= N; f++ ) opts.push( `<option value="${ f }"${ cfg.reverse[ i ] === f ? ' selected' : '' }>Always ${ f }</option>` );
 		card.innerHTML = `<button type="button" class="rm" aria-label="Remove d${ N }">✕</button>` +
-			`<div class="top"><span class="shape">${ dieIcon( N ) }</span><div class="nm">d${ N }<small>${ shapeName( N ) }</small></div></div>` +
+			`<div class="top"><button type="button" class="shape" title="Style this die" aria-label="Style die ${ i + 1 }, d${ N }">${ lookIcon( N, styleBase( i ) ) }<span class="brush">${ ICON_BRUSH }</span></button><div class="nm">d${ N }${ cfg.look[ i ] ? '<em class="custom-tag">Custom</em>' : '' }<small>${ shapeName( N ) }</small></div></div>` +
 			`<label>Result<span class="selw"><select aria-label="Result for die ${ i + 1 }, d${ N }">${ opts.join( '' ) }</select></span></label>`;
-		card.querySelector( '.rm' ).addEventListener( 'click', () => { cfg.dice.splice( i, 1 ); cfg.reverse.splice( i, 1 ); cfgRenderTray(); cfgRenderWeights(); cfgRenderUrl(); } );
+		card.querySelector( '.rm' ).addEventListener( 'click', () => { cfg.dice.splice( i, 1 ); cfg.reverse.splice( i, 1 ); cfg.look.splice( i, 1 ); cfgRenderTray(); cfgRenderWeights(); cfgRenderUrl(); } );
+		card.querySelector( '.shape' ).addEventListener( 'click', () => openStyle( i ) );
 		card.querySelector( 'select' ).addEventListener( 'change', ( e ) => { cfg.reverse[ i ] = e.target.value ? Number( e.target.value ) : null; card.classList.toggle( 'forced', !! cfg.reverse[ i ] ); cfgRenderUrl(); } );
 		grid.appendChild( card );
 	} );
@@ -2381,6 +2581,7 @@ function cfgRenderInteract() {
 }
 function cfgRenderHq() { $( '#cfgHq' ).setAttribute( 'aria-checked', String( cfg.hq ) ); $( '#cfgHqState' ).textContent = cfg.hq ? 'On' : 'Off'; $( '#cfgHqCard' ).classList.toggle( 'on', cfg.hq ); }
 function openConfig() {
+	$( '#stylePop' ).hidden = true; $( '#stylePop' ).classList.remove( 'open' );
 	cfg = cfgFromParams(); cfg.hq = HQ; cfgRenderHq(); cfgRenderInteract();
 	cfgRenderTray(); cfgRenderWeights(); cfgRenderThemes(); cfgRenderUrl();
 	toggleHistory( false );
@@ -2403,7 +2604,13 @@ function openConfig() {
 	const dlg = $( '#config' );
 	dlg.querySelector( '[data-close]' ).addEventListener( 'click', () => dlg.close() );
 	dlg.addEventListener( 'click', ( e ) => { if ( e.target === dlg ) dlg.close(); } );
-	$( '#cfgReset' ).addEventListener( 'click', () => { cfg = { dice: [ 6 ], reverse: [ null ], weights: {}, loaded: new Set(), background: 'felt', hq: cfg.hq, reroll: false, lock: false }; cfgRenderTray(); cfgRenderWeights(); cfgRenderThemes(); cfgRenderInteract(); cfgRenderUrl(); } );
+	// Escape closes the style sheet first, not the whole dialog.
+	dlg.addEventListener( 'cancel', ( e ) => { if ( closeStyle() ) e.preventDefault(); } );
+	$( '#stylePop' ).addEventListener( 'click', ( e ) => { if ( e.target.id === 'stylePop' ) closeStyle(); } );
+	$( '#spClose' ).addEventListener( 'click', closeStyle );
+	$( '#spDone' ).addEventListener( 'click', closeStyle );
+	$( '#spReset' ).addEventListener( 'click', () => { cfg.look[ spIndex ] = null; renderStyle(); cfgRenderTray(); cfgRenderUrl(); } );
+	$( '#cfgReset' ).addEventListener( 'click', () => { cfg = { dice: [ 6 ], reverse: [ null ], weights: {}, loaded: new Set(), background: 'felt', hq: cfg.hq, reroll: false, lock: false, look: [ null ] }; cfgRenderTray(); cfgRenderWeights(); cfgRenderThemes(); cfgRenderInteract(); cfgRenderUrl(); } );
 	$( '#cfgHq' ).addEventListener( 'click', () => { cfg.hq = ! cfg.hq; cfgRenderHq(); } );
 	$( '#cfgReroll' ).addEventListener( 'click', () => { cfg.reroll = ! cfg.reroll; if ( ! cfg.reroll ) cfg.lock = false; cfgRenderInteract(); cfgRenderUrl(); } );
 	$( '#cfgLock' ).addEventListener( 'click', () => { if ( ! cfg.reroll ) return; cfg.lock = ! cfg.lock; cfgRenderInteract(); cfgRenderUrl(); } );
