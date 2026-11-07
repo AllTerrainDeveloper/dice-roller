@@ -152,11 +152,13 @@ dialog.sheet::backdrop { background: rgba(0,0,0,.5); backdrop-filter: blur(6px);
 .custom input { width: 48px; height: 100%; padding-left: 2px; border: 0; background: transparent; color: var(--text); font: 700 13px var(--ui-font); outline: none; }
 .custom button { height: 100%; padding: 0 13px; border: 0; border-left: 1px dashed var(--stroke); border-radius: 0 13px 13px 0; background: transparent; color: var(--accent); font: 700 13px var(--ui-font); cursor: pointer; }
 .custom button:hover { background: rgba(255,255,255,.06); }
-.trayl { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 10px; margin-top: 14px; }
-.dcard { position: relative; display: grid; gap: 10px; padding: 12px; border-radius: 16px; border: 1px solid var(--stroke); background: linear-gradient(160deg, rgba(255,255,255,.08), rgba(255,255,255,.02)); animation: pop .4s cubic-bezier(.2,1.4,.4,1); transition: border-color .25s, background .25s; }
+.trayl { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 168px), 1fr)); gap: 10px; margin-top: 14px; }
+.dcard { position: relative; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 12px; border-radius: 16px; border: 1px solid var(--stroke); background: linear-gradient(160deg, rgba(255,255,255,.08), rgba(255,255,255,.02)); animation: pop .4s cubic-bezier(.2,1.4,.4,1); transition: border-color .25s, background .25s; }
 @keyframes pop { from { opacity: 0; transform: scale(.86); } }
 .dcard.forced { border-color: color-mix(in oklab, var(--accent) 65%, transparent); background: linear-gradient(160deg, color-mix(in oklab, var(--accent) 18%, transparent), rgba(255,255,255,.02)); }
-.dcard .top { display: flex; align-items: center; gap: 10px; padding-right: 22px; }
+.dcard .top { display: flex; align-items: center; gap: 10px; min-width: 0; padding-right: 26px; }
+.dcard .nm { min-width: 0; }
+.dcard .nm small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dcard .shape { position: relative; width: 46px; height: 46px; flex: none; padding: 0; border: 0; border-radius: 12px; background: none; cursor: pointer; filter: drop-shadow(0 6px 10px rgba(0,0,0,.35)); transition: transform .25s cubic-bezier(.2,1.4,.4,1); }
 .dcard .shape svg { width: 100%; height: 100%; }
 .dcard .shape:hover { transform: scale(1.1) rotate(-6deg); }
@@ -164,7 +166,7 @@ dialog.sheet::backdrop { background: rgba(0,0,0,.5); backdrop-filter: blur(6px);
 .dcard .shape .brush { position: absolute; right: -6px; bottom: -5px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: var(--accent); color: var(--btn-fg); box-shadow: 0 3px 8px rgba(0,0,0,.35); transform: scale(.85); transition: transform .25s cubic-bezier(.2,1.4,.4,1); }
 .dcard .shape:hover .brush { transform: scale(1.05); }
 .dcard .shape .brush svg { width: 11px; height: 11px; }
-.custom-tag { margin-left: 6px; padding: 2px 6px; border-radius: 999px; background: color-mix(in oklab, var(--accent) 22%, transparent); color: var(--text); font: 600 9.5px var(--ui-font); font-style: normal; letter-spacing: .1em; text-transform: uppercase; vertical-align: 3px; }
+.custom-tag { display: inline-block; margin-top: 4px; padding: 1px 6px; border-radius: 999px; background: color-mix(in oklab, var(--accent) 22%, transparent); color: var(--text); font: 600 9px/1.5 var(--ui-font); font-style: normal; letter-spacing: .1em; text-transform: uppercase; vertical-align: 1px; }
 .stylepop { position: absolute; inset: 0; z-index: 6; display: flex; align-items: flex-end; justify-content: center; background: rgba(0,0,0,.45); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); opacity: 0; transition: opacity .25s ease; }
 .stylepop.open { opacity: 1; }
 .stylepop[hidden] { display: none; }
@@ -203,8 +205,8 @@ dialog.sheet::backdrop { background: rgba(0,0,0,.5); backdrop-filter: blur(6px);
 .dcard .nm small { display: block; margin-top: 3px; font: 500 11px var(--ui-font); color: var(--muted); }
 .dcard .rm { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; }
 .dcard .rm:hover { background: rgba(255,255,255,.1); color: var(--text); }
-.dcard label { display: grid; gap: 5px; font-size: 11px; letter-spacing: .04em; color: var(--muted); }
-.selw { position: relative; }
+.dcard label { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 5px; font-size: 11px; letter-spacing: .04em; color: var(--muted); }
+.selw { position: relative; display: block; min-width: 0; }
 .selw::after { content: ''; position: absolute; right: 12px; top: 50%; width: 6px; height: 6px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: translateY(-70%) rotate(45deg); pointer-events: none; }
 .selw select { -webkit-appearance: none; appearance: none; width: 100%; height: 34px; padding: 0 30px 0 10px; border-radius: 10px; border: 1px solid var(--stroke); background: rgba(0,0,0,.22); color: var(--text); font: 600 13px var(--ui-font); cursor: pointer; }
 .selw select option { color: #111; }
@@ -2507,7 +2509,7 @@ function cfgRenderTray() {
 		const opts = [ '<option value="">Random roll</option>' ];
 		for ( let f = 1; f <= N; f++ ) opts.push( `<option value="${ f }"${ cfg.reverse[ i ] === f ? ' selected' : '' }>Always ${ f }</option>` );
 		card.innerHTML = `<button type="button" class="rm" aria-label="Remove d${ N }">✕</button>` +
-			`<div class="top"><button type="button" class="shape" title="Style this die" aria-label="Style die ${ i + 1 }, d${ N }">${ lookIcon( N, styleBase( i ) ) }<span class="brush">${ ICON_BRUSH }</span></button><div class="nm">d${ N }${ cfg.look[ i ] ? '<em class="custom-tag">Custom</em>' : '' }<small>${ shapeName( N ) }</small></div></div>` +
+			`<div class="top"><button type="button" class="shape" title="Style this die" aria-label="Style die ${ i + 1 }, d${ N }">${ lookIcon( N, styleBase( i ) ) }<span class="brush">${ ICON_BRUSH }</span></button><div class="nm">d${ N }<small>${ shapeName( N ) }</small>${ cfg.look[ i ] ? '<em class="custom-tag">Custom</em>' : '' }</div></div>` +
 			`<label>Result<span class="selw"><select aria-label="Result for die ${ i + 1 }, d${ N }">${ opts.join( '' ) }</select></span></label>`;
 		card.querySelector( '.rm' ).addEventListener( 'click', () => { cfg.dice.splice( i, 1 ); cfg.reverse.splice( i, 1 ); cfg.look.splice( i, 1 ); cfgRenderTray(); cfgRenderWeights(); cfgRenderUrl(); } );
 		card.querySelector( '.shape' ).addEventListener( 'click', () => openStyle( i ) );
