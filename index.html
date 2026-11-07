@@ -2420,6 +2420,7 @@ function openConfig() {
 	} );
 }
 const clock = new THREE.Clock();
+const camRight = new THREE.Vector3();
 const tmpV = new THREE.Vector3();
 function tick() {
 	const dt = Math.min( clock.getDelta(), 1 / 20 ), now = clock.elapsedTime;
@@ -2454,11 +2455,18 @@ function tick() {
 			tmpE.setFromQuaternion( m.quaternion, 'YXZ' ); d.rotation.z = tmpE.y + tmpE.x * 0.5;
 		} );
 	}
-	for ( const c of candles ) {
-		const n = Math.sin( now * 9.1 + c.seed ) * 0.5 + Math.sin( now * 15.7 + c.seed * 2.3 ) * 0.3 + Math.sin( now * 23.3 + c.seed * 0.7 ) * 0.2;
-		c.light.intensity = c.base * ( 0.86 + 0.14 * n );
-		c.light.position.set( Math.sin( now * 6.3 + c.seed ) * 0.035, c.ly + Math.sin( now * 8.7 + c.seed ) * 0.025, Math.cos( now * 7.1 + c.seed ) * 0.035 );
-		c.flame.material.uniforms.uFlick.value = n; c.halo.material.opacity = 0.2 + 0.05 * n;
+	if ( candles.length ) {
+		// The light follows the flame: same clock as the flame shader, and only as far as the
+		// flame's bright centre actually sways, so shadows move with the fire and no more.
+		camRight.setFromMatrixColumn( camera.matrixWorld, 0 ).setY( 0 ).normalize();
+		for ( const c of candles ) {
+			const t = causticU.uTime.value * 6 + c.seed, y = 0.4;
+			const n = Math.sin( now * 9.1 + c.seed ) * 0.5 + Math.sin( now * 15.7 + c.seed * 2.3 ) * 0.3 + Math.sin( now * 23.3 + c.seed * 0.7 ) * 0.2;
+			const sway = ( Math.sin( t * 2.3 + y * 5 ) * 0.06 + Math.sin( t * 5.1 ) * 0.03 ) * y * y * 0.17;
+			c.light.intensity = c.base * ( 0.9 + 0.1 * n );
+			c.light.position.set( camRight.x * sway, c.ly + 0.008 * n, camRight.z * sway );
+			c.flame.material.uniforms.uFlick.value = n; c.halo.material.opacity = 0.2 + 0.05 * n;
+		}
 	}
 	for ( const f of flickers ) f.l.intensity = f.base * ( 0.86 + 0.1 * Math.sin( now * 7.3 + f.seed ) + 0.06 * Math.sin( now * 17.1 + f.seed * 2 ) + 0.04 * Math.sin( now * 31 + f.seed ) );
 	controls.update();
