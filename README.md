@@ -41,6 +41,7 @@ The page is configured entirely through its query string. With no parameters it 
 | `background` | `background=crystal` | `felt`, `wood`, `marble`, `cosmos`, `neon`, `velvet`, `crystal`, `stone`, `medieval` (or `1`–`9`). |
 | `reroll` | `reroll=1` | Tap a die (or its result chip) to re-roll just that die. Re-rolls are pure physics: forced results and weights don't apply to them. |
 | `look` | `look=[c1121f-ffffff-glass,0,1f5fe0-gold-polished]` | Per-die style, in dice order: body colour, number colour (hex, `gold`, `silver` or `auto`) and finish. `0` keeps the table's default. Finishes: `gloss`, `matte`, `metal`, `pearl`, `glass`, `gem`, `stone`, `polished`, `neon`; a finish the table doesn't offer falls back to its closest material. |
+| `hideui` | `hideui=1` | Hide every button and the results; only the settings button stays (top-right). Tap the table or press Space to roll. Handy for streams and display screens. |
 | `lock` | `lock=1` | With `reroll=1`: settled dice can't be moved; re-rolled dice bounce off them. |
 
 Examples:

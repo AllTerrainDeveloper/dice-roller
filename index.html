@@ -48,6 +48,9 @@ canvas#c:active { cursor: grabbing; }
 .brand b { font-size: 13px; letter-spacing: .22em; text-transform: uppercase; }
 .brand span { font-size: 11px; letter-spacing: .08em; color: var(--muted); }
 .tools { position: fixed; top: max(14px, env(safe-area-inset-top)); right: 14px; display: flex; gap: 8px; }
+body.ui-hidden .brand, body.ui-hidden .dock, body.ui-hidden #tags, body.ui-hidden .drawer, body.ui-hidden .tools > :not(#cfgBtn) { display: none !important; }
+body.ui-hidden #cfgBtn { opacity: .55; transition: opacity .25s; }
+body.ui-hidden #cfgBtn:hover, body.ui-hidden #cfgBtn:focus-visible { opacity: 1; }
 .icon-btn {
 	width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--stroke); background: var(--glass); color: var(--text);
 	backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
@@ -395,6 +398,13 @@ dialog.sheet { width: 100vw; max-height: 94vh; margin: auto 0 0; border-radius: 
 					</div>
 				</div>
 			</section>
+			<section aria-labelledby="cfgDH">
+				<h3 id="cfgDH">Display</h3>
+				<div class="wcard" id="cfgHideuiCard">
+					<div class="whead"><div><b>Hide all buttons and results</b><span class="wstate" id="cfgHideuiState">Off</span></div><span class="sp"></span><button type="button" class="switch" role="switch" id="cfgHideui" aria-checked="false" aria-label="Hide all buttons and results"></button></div>
+					<p class="note" style="margin: 8px 0 0">Just the table and the dice, for streaming or a display screen. Only this settings button stays, in the top-right corner. Tap the table or press Space to roll.</p>
+				</div>
+			</section>
 			<section aria-labelledby="cfgQH">
 				<h3 id="cfgQH">Quality</h3>
 				<div class="wcard" id="cfgHqCard">
@@ -556,7 +566,7 @@ const params = ( () => {
 	let background = bgMap[ bgRaw ];
 	if ( ! background ) { warnings.push( `Unknown background "${ bgRaw }". Use felt, wood, marble, cosmos, neon, velvet, crystal, stone or medieval.` ); background = 'felt'; }
 	const on = ( v ) => /^(1|true|on|yes)$/i.test( String( v ?? '' ).trim() );
-	const reroll = on( get( 'reroll', 'tap' ) ), lock = reroll && on( get( 'lock' ) );
+	const reroll = on( get( 'reroll', 'tap' ) ), lock = reroll && on( get( 'lock' ) ), hideui = on( get( 'hideui', 'clean', 'kiosk' ) );
 	// look=[c1121f-ffffff-glass,0,…]: per-die body colour, number colour (hex, gold, silver or auto) and finish.
 	const look = dice.map( () => null );
 	const lookRaw = get( 'look', 'style', 'colors' );
@@ -569,7 +579,7 @@ const params = ( () => {
 			look[ i ] = { body: '#' + b.toLowerCase(), ink: hex( k ) ? '#' + k.toLowerCase() : k === 'gold' || k === 'silver' ? k : null, finish: FINISHES.includes( f ) ? f : 'gloss' };
 		} );
 	}
-	return { dice, weights, reverse, background, reroll, lock, look, warnings };
+	return { dice, weights, reverse, background, reroll, lock, hideui, look, warnings };
 } )();
 
 /* ------------------------------------------------------------------ *
@@ -980,6 +990,7 @@ const theme = THEMES[ params.background ];
 for ( const [ k, v ] of Object.entries( theme.css ) ) document.documentElement.style.setProperty( k, v );
 $( '#themeName' ).textContent = theme.name;
 document.body.style.background = theme.bg;
+document.body.classList.toggle( 'ui-hidden', params.hideui );
 
 /* ------------------------------------------------------------------ *
  * Die geometry: fair isohedral solids for any number of sides
@@ -1895,6 +1906,7 @@ function computeArena() {
 	return { hx: W / 2, hz: D / 2 };
 }
 function bottomReserve() {
+	if ( params.hideui ) return 0.04;
 	// Room for the roll button plus the results card (estimated before it first appears).
 	const btn = $( '#rollBtn' ).getBoundingClientRect(), res = $( '#results' );
 	let card;
@@ -1922,7 +1934,7 @@ function solveFraming() {
 	for ( const x of [ -hx - T, hx + T ] ) for ( const z of [ -hz - T, hz + T ] ) pts.push( V3( x, 0, z ), V3( x, H + 0.3, z ) );
 	for ( const x of [ -hx, hx ] ) for ( const z of [ -hz, hz ] ) pts.push( V3( x * 0.65, air, z * 0.65 ) );
 	if ( theme.candles ) for ( const sx of [ -1, 1 ] ) for ( const sz of [ -1, 1 ] ) pts.push( V3( sx * ( hx + T + 1.3 ), 2.3, sz * ( hz + T + 1.2 ) ) );
-	const botN = -1 + 2 * bottomReserve(), topN = 1 - 2 * ( 68 / innerHeight );
+	const botN = -1 + 2 * bottomReserve(), topN = 1 - 2 * ( ( params.hideui ? 40 : 68 ) / innerHeight );
 	camera.aspect = innerWidth / innerHeight;
 	const probe = camera.clone(); probe.clearViewOffset(); probe.updateProjectionMatrix();
 	const fits = ( dist ) => {
@@ -1955,7 +1967,7 @@ function fitCamera( animate = true ) {
 // Looks ahead through a whole recorded roll: how far the camera must pull back so every
 // die stays in frame, and from when it can ease back in. No reactive corrections mid-roll.
 function planCamera( r ) {
-	const botN = -1 + 2 * ( ( innerHeight - $( '#rollBtn' ).getBoundingClientRect().top + 8 ) / innerHeight );
+	const botN = params.hideui ? -0.95 : -1 + 2 * ( ( innerHeight - $( '#rollBtn' ).getBoundingClientRect().top + 8 ) / innerHeight );
 	const probe = camera.clone(), dir = camera.position.clone().sub( controls.target ).normalize(), v = new THREE.Vector3(), n = types.length, F = r.frames;
 	probe.setViewOffset( innerWidth, innerHeight, 0, cam.shiftTarget, innerWidth, innerHeight ); probe.updateProjectionMatrix();
 	const ok = ( fr, k ) => {
@@ -2447,7 +2459,7 @@ function cfgFromParams() {
 	return {
 		dice: params.dice.slice(), reverse: params.reverse.slice(),
 		weights: Object.fromEntries( Object.entries( params.weights ).map( ( [ k, v ] ) => [ k, v.slice() ] ) ),
-		loaded: new Set( Object.keys( params.weights ).map( Number ) ), background: params.background, reroll: params.reroll, lock: params.lock,
+		loaded: new Set( Object.keys( params.weights ).map( Number ) ), background: params.background, reroll: params.reroll, lock: params.lock, hideui: params.hideui,
 		look: params.look.map( ( l ) => ( l ? { ...l } : null ) ),
 	};
 }
@@ -2465,6 +2477,7 @@ function cfgQuery() {
 	if ( cfg.background !== 'felt' ) parts.push( `background=${ cfg.background }` );
 	if ( cfg.reroll ) parts.push( 'reroll=1' );
 	if ( cfg.reroll && cfg.lock ) parts.push( 'lock=1' );
+	if ( cfg.hideui ) parts.push( 'hideui=1' );
 	const lk = cfg.look.slice( 0, d.length ).map( ( l ) => ( l ? `${ l.body.slice( 1 ) }-${ l.ink ? ( l.ink[ 0 ] === '#' ? l.ink.slice( 1 ) : l.ink ) : 'auto' }-${ l.finish }` : '0' ) );
 	while ( lk.length && lk[ lk.length - 1 ] === '0' ) lk.pop();
 	if ( lk.length ) parts.push( `look=[${ lk.join( ',' ) }]` );
@@ -2576,7 +2589,7 @@ function cfgRenderThemes() {
 }
 function cfgRenderInteract() {
 	const set = ( id, v ) => { $( '#cfg' + id ).setAttribute( 'aria-checked', String( v ) ); $( '#cfg' + id + 'State' ).textContent = v ? 'On' : 'Off'; $( '#cfg' + id + 'Card' ).classList.toggle( 'on', v ); };
-	set( 'Reroll', cfg.reroll ); set( 'Lock', cfg.reroll && cfg.lock );
+	set( 'Reroll', cfg.reroll ); set( 'Lock', cfg.reroll && cfg.lock ); set( 'Hideui', !! cfg.hideui );
 	$( '#cfgLock' ).disabled = ! cfg.reroll; $( '#cfgLockCard' ).style.opacity = cfg.reroll ? '' : '0.45';
 }
 function cfgRenderHq() { $( '#cfgHq' ).setAttribute( 'aria-checked', String( cfg.hq ) ); $( '#cfgHqState' ).textContent = cfg.hq ? 'On' : 'Off'; $( '#cfgHqCard' ).classList.toggle( 'on', cfg.hq ); }
@@ -2610,10 +2623,11 @@ function openConfig() {
 	$( '#spClose' ).addEventListener( 'click', closeStyle );
 	$( '#spDone' ).addEventListener( 'click', closeStyle );
 	$( '#spReset' ).addEventListener( 'click', () => { cfg.look[ spIndex ] = null; renderStyle(); cfgRenderTray(); cfgRenderUrl(); } );
-	$( '#cfgReset' ).addEventListener( 'click', () => { cfg = { dice: [ 6 ], reverse: [ null ], weights: {}, loaded: new Set(), background: 'felt', hq: cfg.hq, reroll: false, lock: false, look: [ null ] }; cfgRenderTray(); cfgRenderWeights(); cfgRenderThemes(); cfgRenderInteract(); cfgRenderUrl(); } );
+	$( '#cfgReset' ).addEventListener( 'click', () => { cfg = { dice: [ 6 ], reverse: [ null ], weights: {}, loaded: new Set(), background: 'felt', hq: cfg.hq, reroll: false, lock: false, hideui: false, look: [ null ] }; cfgRenderTray(); cfgRenderWeights(); cfgRenderThemes(); cfgRenderInteract(); cfgRenderUrl(); } );
 	$( '#cfgHq' ).addEventListener( 'click', () => { cfg.hq = ! cfg.hq; cfgRenderHq(); } );
 	$( '#cfgReroll' ).addEventListener( 'click', () => { cfg.reroll = ! cfg.reroll; if ( ! cfg.reroll ) cfg.lock = false; cfgRenderInteract(); cfgRenderUrl(); } );
 	$( '#cfgLock' ).addEventListener( 'click', () => { if ( ! cfg.reroll ) return; cfg.lock = ! cfg.lock; cfgRenderInteract(); cfgRenderUrl(); } );
+	$( '#cfgHideui' ).addEventListener( 'click', () => { cfg.hideui = ! cfg.hideui; cfgRenderInteract(); cfgRenderUrl(); } );
 	$( '#cfgApply' ).addEventListener( 'click', () => {
 		const q = cfgQuery(), hqChanged = cfg.hq !== HQ, same = q === location.search || ( ! q && ! location.search );
 		if ( hqChanged ) { try { localStorage.setItem( 'dice.hq', cfg.hq ? '1' : '0' ); } catch ( e ) {} }
