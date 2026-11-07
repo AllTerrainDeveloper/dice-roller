@@ -4,6 +4,8 @@
 
 <p align="center">A physically simulated 3D dice roller in a single page.<br>Any dice, loaded weights, forced results and six tables, all driven by the URL.</p>
 
+<p align="center"><a href="https://allterraindeveloper.github.io/dice-roller/"><b>Try it live</b></a> · <a href="https://allterraindeveloper.github.io/dice-roller/?dice=[4,6,8,10,12,20]&background=velvet">Full set on velvet</a> · <a href="https://allterraindeveloper.github.io/dice-roller/?dice=[20,20,10,7]&background=neon">Synthwave</a> · <a href="https://allterraindeveloper.github.io/dice-roller/?dice=[6,6,6]&reverse=[2,4,6]&background=wood">Forced 2·4·6</a></p>
+
 ---
 
 ## Features
