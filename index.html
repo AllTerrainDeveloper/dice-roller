@@ -1511,22 +1511,27 @@ function buildLights() {
 	const key = params.background;
 	const dirShadow = ( col, inten, pos ) => {
 		const l = new THREE.DirectionalLight( col, inten ); l.position.set( ...pos ); l.castShadow = true;
-		l.shadow.mapSize.set( SHADOW_SIZE, SHADOW_SIZE ); l.shadow.bias = -0.0004; l.shadow.normalBias = 0.03; l.shadow.radius = HQ ? 6 : 4;
+		l.shadow.mapSize.set( SHADOW_SIZE, SHADOW_SIZE ); l.shadow.bias = -0.0002; l.shadow.normalBias = 0.004; l.shadow.radius = HQ ? 6 : 4;
 		scene.add( l ); scene.add( l.target ); shadowLight = l; return l;
 	};
 	const spotShadow = ( col, inten, pos ) => {
 		const l = new THREE.SpotLight( col, inten, 0, 0.5, 0.85, 0 ); l.position.set( ...pos ); l.castShadow = true;
-		l.shadow.mapSize.set( SHADOW_SIZE, SHADOW_SIZE ); l.shadow.bias = -0.0003; l.shadow.normalBias = 0.03;
+		l.shadow.mapSize.set( SHADOW_SIZE, SHADOW_SIZE ); l.shadow.bias = -0.0001; l.shadow.normalBias = 0.004;
 		scene.add( l ); scene.add( l.target ); shadowLight = l; return l;
 	};
-	const point = ( col, inten, pos, flicker = false ) => { const l = new THREE.PointLight( col, inten, 0, 2 ); l.position.set( ...pos ); scene.add( l ); if ( flicker ) flickers.push( { l, base: inten, seed: Math.random() * 100 } ); return l; };
+	// Every light in the scene casts its own soft shadow, so dice show one shadow per light source.
+	const point = ( col, inten, pos, flicker = false ) => {
+		const l = new THREE.PointLight( col, inten, 0, 2 ); l.position.set( ...pos );
+		l.castShadow = true; l.shadow.mapSize.set( HQ ? 1024 : 512, HQ ? 1024 : 512 ); l.shadow.bias = -0.0008; l.shadow.normalBias = 0.01; l.shadow.radius = 5; l.shadow.camera.near = 0.3; l.shadow.camera.far = 60;
+		scene.add( l ); if ( flicker ) flickers.push( { l, base: inten, seed: Math.random() * 100 } ); return l;
+	};
 	if ( key === 'felt' ) {
 		spotShadow( 0xffe1b5, 5.2, [ 1.5, 24, 5 ] );
 		scene.add( new THREE.HemisphereLight( 0x3c5a48, 0x080605, 0.35 ) );
 		const rim = new THREE.DirectionalLight( 0xb8c8ff, 0.5 ); rim.position.set( -6, 6, -10 ); scene.add( rim );
 	} else if ( key === 'wood' ) {
-		dirShadow( 0xffd2a0, 1.9, [ 7, 16, 5 ] );
-		point( 0xff8a3a, 70, [ -9, 4, -6 ], true ); point( 0xff9a4a, 55, [ 10, 3.5, 3 ], true );
+		dirShadow( 0xffd2a0, 1.15, [ 7, 16, 5 ] );
+		point( 0xff8a3a, 120, [ -8, 3.6, -5 ], true ); point( 0xff9a4a, 100, [ 9, 3.2, 3 ], true );
 		scene.add( new THREE.HemisphereLight( 0x4a3020, 0x0a0503, 0.3 ) );
 	} else if ( key === 'marble' ) {
 		dirShadow( 0xfffaf2, 2.6, [ -6, 17, 8 ] );
@@ -1541,12 +1546,12 @@ function buildLights() {
 		scene.add( new THREE.HemisphereLight( 0x2a0a4a, 0x05010a, 0.4 ) );
 	} else if ( key === 'crystal' ) {
 		spotShadow( 0xeef2ff, 3.6, [ -9, 17, 8 ] );
-		point( 0x7fe8ff, 30, [ -9, 3, -4 ] ); point( 0xff8ff0, 28, [ 9, 3, -3 ] ); point( 0xffd98a, 20, [ 0, 2.5, 10 ] );
+		point( 0x7fe8ff, 55, [ -9, 3, -4 ] ); point( 0xff8ff0, 50, [ 9, 3, -3 ] ); point( 0xffd98a, 34, [ 0, 2.5, 10 ] );
 		scene.add( new THREE.HemisphereLight( 0x7c78e0, 0x0c0a22, 0.22 ) );
 	} else if ( key === 'stone' ) {
 		dirShadow( 0xffcf8a, 2.5, [ -11, 9, 7 ] );
 		scene.add( new THREE.HemisphereLight( 0x8fa4c8, 0x3a2a1a, 0.55 ) );
-		point( 0xff7a2a, 60, [ 13, 2.2, -5 ], true );
+		point( 0xff7a2a, 150, [ 10.5, 2.4, -4 ], true );
 	} else if ( key === 'medieval' ) {
 		// Only moonlight from a high window plus the four candles (built with the tray).
 		const moon = dirShadow( 0x8f9ad0, 0.6, [ 8, 14, -9 ] ); moon.castShadow = false;
@@ -1792,7 +1797,7 @@ function buildCandles( hx, hz ) {
 		const halo = new THREE.Sprite( new THREE.SpriteMaterial( { map: glowTex(), color: 0xffa050, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.22, fog: false } ) );
 		halo.scale.setScalar( 0.85 ); halo.position.y = top + 0.18; g.add( halo );
 		const light = new THREE.PointLight( 0xff9440, 40, 0, 1.35 ); light.position.y = top + 0.4; light.castShadow = true;
-		light.shadow.mapSize.set( shadowRes, shadowRes ); light.shadow.bias = -0.002; light.shadow.normalBias = 0.02; light.shadow.radius = 4; light.shadow.camera.near = 0.15; light.shadow.camera.far = 40;
+		light.shadow.mapSize.set( shadowRes, shadowRes ); light.shadow.bias = -0.0008; light.shadow.normalBias = 0.01; light.shadow.radius = 4; light.shadow.camera.near = 0.15; light.shadow.camera.far = 40;
 		g.add( light );
 		railGroup.add( g );
 		candles.push( { light, flame, halo, base: 40, seed, ly: top + 0.4 } );
@@ -1862,10 +1867,16 @@ function buildRails( hx, hz ) {
 	const shape = new THREE.Shape( roundedRectPts( hx + T - B, hz + T - B, RC + T - B ) );
 	shape.holes.push( new THREE.Path( roundedRectPts( hx + B, hz + B, RC + B ) ) );
 	if ( ! theme.noFrame ) {
-		const g = new THREE.ExtrudeGeometry( shape, { depth: Math.max( 0.01, H - 2 * B ), bevelEnabled: true, bevelThickness: B, bevelSize: B, bevelSegments: 10, curveSegments: 4, steps: 1 } );
-		g.rotateX( -Math.PI / 2 ); g.translate( 0, B, 0 );
+		// The rounded bottom edge is sunk below the table so the frame sits flat on it: no light gap
+		// under the bevel, so the frame and its shadow meet cleanly.
+		const g = new THREE.ExtrudeGeometry( shape, { depth: Math.max( 0.01, H - B ), bevelEnabled: true, bevelThickness: B, bevelSize: B, bevelSegments: 10, curveSegments: 4, steps: 1 } );
+		g.rotateX( -Math.PI / 2 );
 		smoothNormals( g );
 		const frame = new THREE.Mesh( g, railMat ); frame.castShadow = frame.receiveShadow = true; railGroup.add( frame );
+	}
+	if ( ! theme.noFrame ) {
+		railGroup.add( aoStrip( loopPoints( hx, hz, RC, 0, 480 ), -1, 0.45, AO_STRENGTH * 0.8 ) );
+		railGroup.add( aoStrip( loopPoints( hx + T, hz + T, RC + T, 0, 480 ), 1, 0.55, AO_STRENGTH * 0.7 ) );
 	}
 	if ( params.background === 'crystal' ) buildCrystalDecor( hx, hz );
 	if ( theme.stone ) buildStoneCourt( hx, hz );
@@ -2206,7 +2217,36 @@ function playHit( kind, strength, rate ) {
  * Dice in the scene
  * ------------------------------------------------------------------ */
 const typeCache = new Map();
-let types = [], meshes = [], palettes = [], decals = [];
+let types = [], meshes = [], palettes = [], decals = [], blobs = [];
+// Contact shadows: ambient occlusion where dice and rails touch the table, so nothing looks
+// like it floats even when several lights fill in each other's cast shadows.
+const AO_STRENGTH = { marble: 0.42, crystal: 0.45, cosmos: 0.6, neon: 0.6 }[ params.background ] ?? 0.62;
+let aoBlobTex = null, aoStripTex = null;
+function aoTextures() {
+	if ( aoBlobTex ) return;
+	const S = 256, cv = document.createElement( 'canvas' ); cv.width = cv.height = S;
+	const ctx = cv.getContext( '2d' ), g = ctx.createRadialGradient( S / 2, S / 2, 0, S / 2, S / 2, S / 2 );
+	for ( let k = 0; k <= 10; k++ ) { const t = k / 10; g.addColorStop( t, `rgba(0,0,0,${ Math.pow( 1 - t, 2.2 ).toFixed( 3 ) })` ); }
+	ctx.fillStyle = g; ctx.fillRect( 0, 0, S, S ); aoBlobTex = texFrom( cv ); aoBlobTex.wrapS = aoBlobTex.wrapT = THREE.ClampToEdgeWrapping;
+	const cv2 = document.createElement( 'canvas' ); cv2.width = 4; cv2.height = 128;
+	const c2 = cv2.getContext( '2d' ), g2 = c2.createLinearGradient( 0, 128, 0, 0 );
+	for ( let k = 0; k <= 10; k++ ) { const t = k / 10; g2.addColorStop( t, `rgba(0,0,0,${ Math.pow( 1 - t, 2 ).toFixed( 3 ) })` ); }
+	c2.fillStyle = g2; c2.fillRect( 0, 0, 4, 128 ); aoStripTex = texFrom( cv2 ); aoStripTex.wrapS = aoStripTex.wrapT = THREE.ClampToEdgeWrapping;
+}
+// A soft band hugging a loop on the floor, dark at the loop and fading out over `width`.
+function aoStrip( pts, out, width, alpha ) {
+	aoTextures();
+	const n = pts.length, pos = [], uv = [], ind = [];
+	pts.forEach( ( p, i ) => {
+		const a = pts[ ( i + n - 1 ) % n ], b = pts[ ( i + 1 ) % n ], tx = b.x - a.x, tz = b.z - a.z, l = Math.hypot( tx, tz ) || 1;
+		const nx = ( tz / l ) * out, nz = ( -tx / l ) * out; // outward normal of a counter-clockwise loop
+		pos.push( p.x, 0.006, p.z, p.x + nx * width, 0.006, p.z + nz * width ); uv.push( 0, 0, 0, 1 );
+	} );
+	for ( let i = 0; i < n; i++ ) { const a = 2 * i, b = a + 1, c = 2 * ( ( i + 1 ) % n ), d = c + 1; ind.push( a, c, b, b, c, d ); }
+	const g = new THREE.BufferGeometry(); g.setAttribute( 'position', new THREE.Float32BufferAttribute( pos, 3 ) ); g.setAttribute( 'uv', new THREE.Float32BufferAttribute( uv, 2 ) ); g.setIndex( ind );
+	const m = new THREE.Mesh( g, new THREE.MeshBasicMaterial( { map: aoStripTex, color: 0x000000, transparent: true, opacity: alpha, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 } ) );
+	m.renderOrder = 1; return m;
+}
 const tmpE = new THREE.Euler();
 function makeDice() {
 	types = params.dice.map( ( N ) => {
@@ -2219,6 +2259,11 @@ function makeDice() {
 		const geo = theme.stone ? t.geometry.clone().scale( 0.97 + 0.06 * Math.random(), 0.97 + 0.06 * Math.random(), 0.97 + 0.06 * Math.random() ) : t.geometry;
 		const m = new THREE.Mesh( geo, makeDieMaterial( palettes[ i ], t ) );
 		m.castShadow = true; m.receiveShadow = true; m.visible = false; scene.add( m ); return m;
+	} );
+	aoTextures();
+	blobs = meshes.map( () => {
+		const b = new THREE.Mesh( new THREE.PlaneGeometry( 1, 1 ), new THREE.MeshBasicMaterial( { map: aoBlobTex, color: 0x000000, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 } ) );
+		b.rotation.x = -Math.PI / 2; b.renderOrder = 2; b.visible = false; scene.add( b ); return b;
 	} );
 	// Gem dice focus the key light into coloured caustic pools on the floor.
 	if ( theme.caustics ) {
@@ -2666,6 +2711,13 @@ function tick() {
 	}
 	updateCamera( dt );
 	causticU.uTime.value += dt * 0.45;
+	blobs.forEach( ( b, i ) => {
+		const m = meshes[ i ]; b.visible = m.visible; if ( ! m.visible ) return;
+		const R = types[ i ].circumR, ground = theme.stone ? stoneSample( m.position.x, m.position.z ).h : 0, h = Math.max( 0, m.position.y - ground - R * 0.7 );
+		b.position.set( m.position.x, ground + 0.01, m.position.z );
+		b.scale.setScalar( R * 2.3 * ( 1 + h * 0.6 ) * m.scale.x );
+		b.material.opacity = AO_STRENGTH * clamp( 1 - h / 1.6, 0, 1 );
+	} );
 	if ( decals.length && shadowLight ) {
 		const Lp = shadowLight.position;
 		meshes.forEach( ( m, i ) => {
@@ -2788,7 +2840,7 @@ document.querySelector( 'meta[name="theme-color"]' ).setAttribute( 'content', th
 /* ------------------------------------------------------------------ *
  * Boot
  * ------------------------------------------------------------------ */
-window.__dice = { params, results: null, get types() { return types; }, planNudge: ( i ) => planNudge( i ), planRoll: () => planRoll(), sim: ( seed ) => simulate( seed ) };
+window.__dice = { params, results: null, get types() { return types; }, get scene() { return scene; }, get renderer() { return renderer; }, planNudge: ( i ) => planNudge( i ), planRoll: () => planRoll(), sim: ( seed ) => simulate( seed ) };
 ( async () => {
 	try {
 		const fontReady = Promise.race( [ document.fonts.load( fontStr( 100 ) ).then( () => document.fonts.ready ), new Promise( ( r ) => setTimeout( r, 3000 ) ) ] );
