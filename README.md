@@ -2,9 +2,9 @@
 
 <h1 align="center">Dice Roller</h1>
 
-<p align="center">A physically simulated 3D dice roller in a single page.<br>Any dice, loaded weights, forced results and six tables, all driven by the URL.</p>
+<p align="center">A physically simulated 3D dice roller in a single page.<br>Any dice, loaded weights, forced results and seven tables, all driven by the URL.</p>
 
-<p align="center"><a href="https://allterraindeveloper.github.io/dice-roller/"><b>Try it live</b></a> · <a href="https://allterraindeveloper.github.io/dice-roller/?dice=[4,6,8,10,12,20]&background=velvet">Full set on velvet</a> · <a href="https://allterraindeveloper.github.io/dice-roller/?dice=[20,20,10,7]&background=neon">Synthwave</a> · <a href="https://allterraindeveloper.github.io/dice-roller/?dice=[6,6,6]&reverse=[2,4,6]&background=wood">Forced 2·4·6</a></p>
+<p align="center"><a href="https://allterraindeveloper.github.io/dice-roller/"><b>Try it live</b></a> · <a href="https://allterraindeveloper.github.io/dice-roller/?dice=[4,6,8,10,12,20]&background=velvet">Full set on velvet</a> · <a href="https://allterraindeveloper.github.io/dice-roller/?dice=[4,6,8,10,12,20]&background=crystal">Crystal Palace</a> · <a href="https://allterraindeveloper.github.io/dice-roller/?dice=[20,20,10,7]&background=neon">Synthwave</a> · <a href="https://allterraindeveloper.github.io/dice-roller/?dice=[6,6,6]&reverse=[2,4,6]&background=wood">Forced 2·4·6</a></p>
 
 ---
 
@@ -14,10 +14,14 @@
 - **Any number of sides (2–100).** Fair, face-transitive shapes for every die: coin, tetrahedron, cube, octahedron, dodecahedron, icosahedron, trapezohedra (the d10 family, so `38` is a 38-face spindle) and bipyramids. Odd dice use the doubled fair shape with each number twice.
 - **Forced results that still look real.** `reverse` makes dice land on chosen faces without faking the motion (see [How forced results work](#how-forced-results-work)).
 - **Loaded dice** with exact per-face probabilities.
-- **Six tables:** Casino Felt, Tavern Oak, Carrara Marble, Nebula Glass, Synthwave and Royal Velvet, each with its own lighting, dice materials, physics (felt is dead, marble is bouncy) and synthesized impact sounds.
+- **Seven tables:** Casino Felt, Tavern Oak, Carrara Marble, Nebula Glass, Synthwave, Royal Velvet and Crystal Palace, each with its own lighting, dice materials, physics (felt is dead, marble is bouncy) and synthesized impact sounds.
+- **Crystal Palace:** refractive gem dice with dispersion that bend the crystal floor behind them and cast coloured caustic pools, animated chromatic caustics, a transmissive crystal frame with a prismatic under-glow, crystal spires, drifting sparkles and glass-chime sounds.
 - **Physically based rendering** with three.js: clearcoat resin, glass with dispersion, metal and pearlescent dice, engraved numbers, soft shadows and mirror floors.
 - **Setup dialog.** Build any configuration visually. It only writes the query string, so every setup is a shareable link.
-- **Roll history.** Every roll is recorded frame by frame and can be replayed at real speed or in slow motion.
+- **Roll history.** Every roll is recorded frame by frame and can be replayed at real speed or in slow motion, or cleared.
+- **Result badges** over each die can be hidden with one button.
+- **High resolution by default:** full device resolution, 8× MSAA, double-resolution textures and smoother dice. It can be switched off per device in the setup dialog.
+- **Smooth camera.** It plans each roll from the recorded trajectory, pulling back before a high toss and easing back in with damped springs.
 - **Installable PWA.** Works offline after the first visit.
 - Responsive framing for phones and desktops, orbit and zoom, keyboard shortcuts.
 
@@ -30,7 +34,7 @@ The page is configured entirely through its query string. With no parameters it 
 | `dice` | `dice=[4,6,8,10,12,20,38]` | One entry per die: its number of sides (2–100, up to 30 dice). |
 | `weights` | `weights=[6,1,1,10,1,1,1]` | Loaded dice. The first number picks the die size, then one relative weight per face. Here face 3 of every d6 is 10× as likely. Several: `weights=[[6,1,1,10,1,1,1],[20,…]]`. |
 | `reverse` | `reverse=[2,4,6]` | Results to land on, in dice order. Use `0` for a die that should roll freely, e.g. `reverse=[0,20]`. |
-| `background` | `background=velvet` | `felt`, `wood`, `marble`, `cosmos`, `neon`, `velvet` (or `1`–`6`). |
+| `background` | `background=crystal` | `felt`, `wood`, `marble`, `cosmos`, `neon`, `velvet`, `crystal` (or `1`–`7`). |
 
 Examples:
 
@@ -39,6 +43,7 @@ Examples:
 ?dice=[6,6]&weights=[6,1,1,10,1,1,1]&background=wood
 ?dice=[6,6,6]&reverse=[2,4,6]&background=velvet
 ?dice=[20,20,10,7]&background=neon
+?dice=[4,6,8,10,12,20]&background=crystal
 ```
 
 ## Keyboard
@@ -48,6 +53,7 @@ Examples:
 | Space / Enter | Roll again |
 | R | Replay the last roll in slow motion |
 | H | Roll history |
+| L | Show or hide result badges |
 | C | Setup dialog |
 | M | Mute |
 
