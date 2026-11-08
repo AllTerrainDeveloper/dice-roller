@@ -18,6 +18,8 @@
 - **Crystal Palace:** refractive gem dice with dispersion that bend the crystal floor behind them and cast coloured caustic pools, animated chromatic caustics, a transmissive crystal frame with a prismatic under-glow, crystal spires, drifting sparkles and glass-chime sounds.
 - **Stone Age:** a court of polished cobblestones shaded per pixel, with the same uneven surface in the physics, so dice wobble and settle tilted on the stones; worn, hand-carved stone dice and a ring of pebbles as the border.
 - **Medieval Castle:** a dark oak table in a castle hall lit by four wax candles near the corners, each with a living flame and its own flickering, shadow-casting light, so the shadows shake.
+- **Throw them yourself.** Press on the dice and drag: they lift into your hand, jostling and rattling. Let go with a flick and the throw follows your hand: a gentle drop barely rolls, a hard swipe sends them bouncing off the rails.
+- **Shake to roll (phones).** Turn on the phone button in the toolbar and the tray becomes a box in your hands: physics runs live, every movement of the phone throws the dice against the walls as you watch, with the clatter (and a buzz on phones that can vibrate). Hold the phone still and they land. Forced and loaded results hold for thrown and shaken dice too.
 - **Tap to re-roll** (`reroll=1`): tap a die, or its result chip, and it jumps high with a random direction and spin. Real physics against the other dice, so the dice it hits can change too, while forced and loaded results keep holding. With `lock=1`, settled dice become immovable obstacles and keep their results.
 - **Physically based rendering** with three.js: clearcoat resin, glass with dispersion, metal and pearlescent dice, engraved numbers, soft shadows and mirror floors.
 - **Per-die styling.** Tap a die's shape in the setup dialog to pick its finish, body colour and number colour. Each table offers its own materials (Stone Age: carved stone, polished stone, bone; Crystal Palace: gem, clear crystal, opal; Synthwave: neon ink, glossy, smoked glass; and so on).
@@ -68,7 +70,7 @@ Examples:
 | C | Setup dialog |
 | M | Mute |
 
-Drag to orbit, scroll or pinch to zoom.
+Drag the table to orbit, drag the dice to throw them, scroll or pinch to zoom.
 
 ## How forced results work
 

@@ -127,6 +127,7 @@ body.ui-hidden #cfgBtn:hover, body.ui-hidden #cfgBtn:focus-visible { opacity: 1;
 .icon-btn { position: relative; }
 .icon-btn .badge { position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: linear-gradient(180deg, var(--accent), var(--accent2)); color: var(--btn-fg); font: 700 10px/18px var(--ui-font); text-align: center; box-shadow: 0 3px 8px rgba(0,0,0,.35); }
 .icon-btn .badge[hidden] { display: none; }
+.icon-btn[hidden] { display: none; }
 
 /* Setup dialog */
 dialog.sheet { width: min(96vw, 780px); max-width: none; max-height: min(92vh, 920px); padding: 0; border: 1px solid var(--stroke); border-radius: 26px; color: var(--text); background: color-mix(in oklab, var(--bg) 76%, black); box-shadow: 0 40px 120px rgba(0,0,0,.55); overflow: hidden; font-family: var(--ui-font); }
@@ -317,7 +318,7 @@ dialog.sheet { width: 100vw; max-height: 94vh; margin: auto 0 0; border-radius: 
 </script>
 </head>
 <body>
-<canvas id="c" tabindex="0" aria-label="3D dice table. Click or press Space to roll."></canvas>
+<canvas id="c" tabindex="0" aria-label="3D dice table. Click or press Space to roll, or drag the dice to throw them."></canvas>
 <div class="vignette"></div>
 <div id="tags" aria-hidden="true"></div>
 
@@ -333,6 +334,10 @@ dialog.sheet { width: 100vw; max-height: 94vh; margin: auto 0 0; border-radius: 
 	</button>
 	<button class="icon-btn" id="replayBtn" title="Replay the last roll in slow motion (R)" aria-label="Replay the last roll in slow motion">
 		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5" stroke-dasharray="2.2 3"/><path d="M10 8.5v7l5.5-3.5z" fill="currentColor" stroke="none"/></svg>
+	</button>
+	<button class="icon-btn" id="shakeBtn" title="Shake to roll" aria-label="Shake the phone to roll" aria-pressed="false" hidden>
+		<svg class="on-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.2"/><path d="M11 17.5h2"/><path d="M3.5 8v8M20.5 8v8"/></svg>
+		<svg class="off-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.2" opacity=".55"/><path d="M11 17.5h2" opacity=".55"/><path d="M3.5 10.5v3M20.5 10.5v3" opacity=".55"/></svg>
 	</button>
 	<button class="icon-btn" id="tagBtn" title="Hide result badges (L)" aria-label="Result badges on the dice" aria-pressed="true">
 		<svg class="on-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor"/></svg>
@@ -2108,8 +2113,10 @@ function updateCamera( dt ) {
 let RAPIER = null;
 const DT = 1 / 120, G = 96;
 // `nudge` = { idx, poses, lock }: start from the dice where they rest and toss only die `idx`.
-function simulate( seed, nudge = null ) {
-	const rng = mulberry32( seed ), { hx, hz } = arena, n = types.length;
+// `toss` = { poses, v, w }: the player's own throw, starting from the dice in their hand.
+// The tray as a physics world: table (or cobbles), four tall walls and a lid.
+function makeWorld() {
+	const { hx, hz } = arena;
 	const world = new RAPIER.World( { x: 0, y: -G, z: 0 } );
 	world.timestep = DT;
 	try { const ip = world.integrationParameters; if ( ip && 'numSolverIterations' in ip ) ip.numSolverIterations = 8; } catch ( e ) {}
@@ -2121,6 +2128,22 @@ function simulate( seed, nudge = null ) {
 	if ( theme.stone && stoneField ) world.createCollider( stoneCollider().setFriction( ph.floorFriction ).setRestitution( ph.floorRest ), fixed );
 	wall( -( hx + WT ), 0, WT, hz + 2 * WT ); wall( hx + WT, 0, WT, hz + 2 * WT ); wall( 0, -( hz + WT ), hx + 2 * WT, WT ); wall( 0, hz + WT, hx + 2 * WT, WT );
 	world.createCollider( RAPIER.ColliderDesc.cuboid( hx + 4, 1, hz + 4 ).setTranslation( 0, 2 * WH, 0 ), fixed );
+	return world;
+}
+function addDieBody( world, t, p, q, v, w, locked = false ) {
+	const bd = ( locked ? RAPIER.RigidBodyDesc.fixed() : RAPIER.RigidBodyDesc.dynamic() ).setTranslation( p.x, p.y, p.z ).setRotation( { x: q.x, y: q.y, z: q.z, w: q.w } )
+		.setLinvel( v.x, v.y, v.z ).setAngvel( { x: w.x, y: w.y, z: w.z } )
+		.setLinearDamping( t.coin ? 0.6 : 0.1 ).setAngularDamping( t.coin ? 3.2 : t.fc > 20 ? 0.9 : 0.45 ).setCcdEnabled( ! theme.stone );
+	const body = world.createRigidBody( bd );
+	const cd = ( t.hullFlat ? RAPIER.ColliderDesc.convexHull( t.hullFlat ) : RAPIER.ColliderDesc.roundConvexHull( t.innerFlat, t.r ) ) || RAPIER.ColliderDesc.ball( t.circumR );
+	cd.setDensity( 1 ).setFriction( t.coin ? 0.55 : 0.42 ).setRestitution( t.coin ? 0.12 : 0.38 );
+	if ( t.coin ) cd.setRestitutionCombineRule( RAPIER.CoefficientCombineRule.Min );
+	world.createCollider( cd, body );
+	return body;
+}
+function simulate( seed, nudge = null, toss = null ) {
+	const rng = mulberry32( seed ), { hx, hz } = arena, n = types.length;
+	const world = makeWorld();
 
 	// A tight handful: dice packed like they leave one hand or cup, never overlapping.
 	const order = types.map( ( t, i ) => i ).sort( ( a, b ) => types[ b ].circumR - types[ a ].circumR );
@@ -2159,16 +2182,14 @@ function simulate( seed, nudge = null ) {
 				v = V3( Math.cos( a ) * sp, 31 + rng() * 6, Math.sin( a ) * sp ); w = randUnit( rng ).multiplyScalar( 22 + rng() * 20 );
 			} else { v = V3( 0, 0, 0 ); w = V3( 0, 0, 0 ); }
 		}
-		const locked = nudge && nudge.lock && i !== nudge.idx;
-		const bd = ( locked ? RAPIER.RigidBodyDesc.fixed() : RAPIER.RigidBodyDesc.dynamic() ).setTranslation( p.x, p.y, p.z ).setRotation( { x: q.x, y: q.y, z: q.z, w: q.w } )
-			.setLinvel( v.x, v.y, v.z ).setAngvel( { x: w.x, y: w.y, z: w.z } )
-			.setLinearDamping( t.coin ? 0.6 : 0.1 ).setAngularDamping( t.coin ? 3.2 : t.fc > 20 ? 0.9 : 0.45 ).setCcdEnabled( ! theme.stone );
-		const body = world.createRigidBody( bd );
-		const cd = ( t.hullFlat ? RAPIER.ColliderDesc.convexHull( t.hullFlat ) : RAPIER.ColliderDesc.roundConvexHull( t.innerFlat, t.r ) ) || RAPIER.ColliderDesc.ball( t.circumR );
-		cd.setDensity( 1 ).setFriction( t.coin ? 0.55 : 0.42 ).setRestitution( t.coin ? 0.12 : 0.38 );
-		if ( t.coin ) cd.setRestitutionCombineRule( RAPIER.CoefficientCombineRule.Min );
-		world.createCollider( cd, body );
-		bodies.push( body );
+		if ( toss ) {
+			// The hand decides the throw; the seed only adds the natural scatter between dice.
+			p = toss.poses[ i ].p.clone(); q = toss.poses[ i ].q.clone();
+			const jit = toss.exact && ! toss.retry ? 0 : 1;
+			v = toss.v[ i ].clone().add( randUnit( rng ).multiplyScalar( 0.7 * jit ) );
+			w = toss.w[ i ].clone().add( randUnit( rng ).multiplyScalar( ( 5 + rng() * 7 ) * jit ) );
+		}
+		bodies.push( addDieBody( world, t, p, q, v, w, nudge && nudge.lock && i !== nudge.idx ) );
 	}
 	const maxSteps = 120 * 14, frames = [], events = [];
 	const prevV = bodies.map( ( b ) => { const v = b.linvel(); return V3( v.x, v.y, v.z ); } );
@@ -2271,15 +2292,7 @@ function planNudge( idx ) {
 				const sym = findSymmetry( t, fi, u );
 				if ( sym ) { S = sym; value = target; break; }
 			}
-			// Fastest spin, preferring frames high in the air (never while still sitting on the table).
-			let best = -1;
-			const y0 = F[ 0 ][ o + 1 ];
-			for ( let s = 1; s < F.length; s++ ) {
-				const A = F[ s - 1 ], B = F[ s ];
-				const w = 1 - Math.abs( A[ o + 3 ] * B[ o + 3 ] + A[ o + 4 ] * B[ o + 4 ] + A[ o + 5 ] * B[ o + 5 ] + A[ o + 6 ] * B[ o + 6 ] );
-				const score = w * ( 0.05 + clamp( ( B[ o + 1 ] - y0 ) / ( 2 * t.circumR ), 0, 1 ) );
-				if ( score > best ) { best = score; at = s; }
-			}
+			at = swapFrame( F, i, t );
 		}
 		offsets.push( S ); results.push( value ); swap.push( at );
 	} );
@@ -2292,14 +2305,27 @@ function rerollDie( idx ) {
 	rollHistory.unshift( r ); if ( rollHistory.length > 50 ) rollHistory.pop();
 	playRoll( r, 1 );
 }
+// Where to swap a die's visual numbering for its forced result: its fastest spin, preferring
+// frames high in the air, so the change hides inside the motion.
+function swapFrame( F, i, t, from = 1 ) {
+	const o = i * 7, y0 = Math.min( F[ 0 ][ o + 1 ], t.circumR );
+	let best = -1, at = from;
+	for ( let s = Math.max( 1, from ); s < F.length; s++ ) {
+		const A = F[ s - 1 ], B = F[ s ];
+		const w = 1 - Math.abs( A[ o + 3 ] * B[ o + 3 ] + A[ o + 4 ] * B[ o + 4 ] + A[ o + 5 ] * B[ o + 5 ] + A[ o + 6 ] * B[ o + 6 ] );
+		const score = w * ( 0.05 + clamp( ( B[ o + 1 ] - y0 ) / ( 2 * t.circumR ), 0, 1 ) );
+		if ( score > best ) { best = score; at = s; }
+	}
+	return at;
+}
 function sampleWeighted( w, rng ) { const tot = w.reduce( ( a, b ) => a + b, 0 ); let x = rng() * tot; for ( let i = 0; i < w.length; i++ ) { x -= w[ i ]; if ( x < 0 ) return i + 1; } return w.length; }
 let seedBase = ( Date.now() ^ ( Math.random() * 1e9 ) ) >>> 0;
-function planRoll() {
+function planRoll( toss = null ) {
 	let sim = null, tries = 0;
-	while ( tries < 30 ) { sim = simulate( ( seedBase += 7919 ) ); tries++; if ( sim.valid ) break; }
+	while ( tries < 30 ) { if ( toss ) toss.retry = tries > 0; sim = simulate( ( seedBase += 7919 ), null, toss ); tries++; if ( sim.valid ) break; }
 	const rng = mulberry32( seedBase ^ 0x9e3779b9 );
 	const last = sim.frames[ sim.frames.length - 1 ];
-	const offsets = [], results = [];
+	const offsets = [], results = [], swap = [];
 	types.forEach( ( t, i ) => {
 		const q = new THREE.Quaternion( last[ i * 7 + 3 ], last[ i * 7 + 4 ], last[ i * 7 + 5 ], last[ i * 7 + 6 ] );
 		const u = readFace( t, q );
@@ -2313,9 +2339,10 @@ function planRoll() {
 				if ( sym ) { S = sym; value = target; break; }
 			}
 		}
-		offsets.push( S ); results.push( value );
+		// A thrown die starts visible in the hand, so its forced number is swapped in mid-flight.
+		offsets.push( S ); results.push( value ); swap.push( toss && Math.abs( S.w ) < 0.9999 ? swapFrame( sim.frames, i, t, 8 ) : 0 );
 	} );
-	return { ...sim, offsets, results, tries };
+	return { ...sim, offsets, results, tries, swap: toss ? swap : undefined, kind: toss ? 'throw' : 'roll' };
 }
 
 /* ------------------------------------------------------------------ *
@@ -2470,6 +2497,7 @@ function showResults( roll ) {
 // exact recorded trajectory runs at `speed` (1 = real time).
 function playRoll( r, speed = 1 ) {
 	if ( ! RAPIER || ! r ) return;
+	endLiveWorld();
 	ensureAudio();
 	if ( Math.abs( r.arena.hx - arena.hx ) > 1e-6 || Math.abs( r.arena.hz - arena.hz ) > 1e-6 ) {
 		arena = { ...r.arena }; buildRails( arena.hx, arena.hz ); fitLightsToArena( arena.hx, arena.hz ); fitCamera( true );
@@ -2519,7 +2547,7 @@ function renderHistory() {
 		const li = document.createElement( 'li' ); li.className = 'hitem' + ( r === anim.roll ? ' cur' : '' );
 		const total = r.results.reduce( ( a, b ) => a + b, 0 );
 		const time = r.time.toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit', second: '2-digit' } );
-		li.innerHTML = `<div class="hrow"><b>${ r.kind === 'nudge' ? `Re-roll d${ types[ r.die ].N }` : `Roll ${ r.id }` }</b><time>${ time }</time><span class="htot">${ multi ? '<small>Total</small>' + total : r.results[ 0 ] }</span></div>` +
+		li.innerHTML = `<div class="hrow"><b>${ r.kind === 'nudge' ? `Re-roll d${ types[ r.die ].N }` : r.kind === 'throw' ? `Throw ${ r.id }` : `Roll ${ r.id }` }</b><time>${ time }</time><span class="htot">${ multi ? '<small>Total</small>' + total : r.results[ 0 ] }</span></div>` +
 			`<div class="hchips">${ r.results.map( ( v, i ) => `<span style="--c:${ palettes[ i ].body }"><i></i><u>d${ types[ i ].N }</u>${ v }</span>` ).join( '' ) }</div>` +
 			`<div class="hbtns"><button type="button" data-s="1">${ ICON_PLAY }Replay</button><button type="button" data-s="0.28">${ ICON_SLOW }Slow motion</button></div>`;
 		li.querySelectorAll( 'button' ).forEach( ( b ) => b.addEventListener( 'click', () => playRoll( r, Number( b.dataset.s ) ) ) );
@@ -2854,7 +2882,8 @@ function tick() {
 		let played = 0;
 		while ( anim.nextEvent < r.events.length && r.events[ anim.nextEvent ].t <= anim.t ) { const ev = r.events[ anim.nextEvent++ ]; if ( played++ < 6 ) playHit( ev.kind, ev.s, anim.speed ); }
 		if ( anim.t >= r.duration ) { anim.phase = 'done'; applyFrame( r, r.duration ); meshes.forEach( ( m ) => m.scale.setScalar( 1 ) ); showResults( r ); }
-	}
+	} else if ( anim.phase === 'held' ) updateHand( dt, now );
+	else if ( anim.phase === 'live' ) stepLive( dt );
 	updateCamera( dt );
 	causticU.uTime.value += dt * 0.45;
 	blobs.forEach( ( b, i ) => {
@@ -2912,7 +2941,7 @@ function onResize() {
 	bloom.resolution.set( innerWidth, innerHeight );
 	if ( reflector ) reflector.getRenderTarget().setSize( innerWidth * ( HQ ? 1 : 0.6 ) * renderer.getPixelRatio(), innerHeight * ( HQ ? 1 : 0.6 ) * renderer.getPixelRatio() );
 	// Re-shape the tray to the new screen when nothing is in flight, then re-frame.
-	if ( anim.phase !== 'play' && anim.phase !== 'gather' && types.length ) {
+	if ( ! [ 'play', 'gather', 'held', 'live' ].includes( anim.phase ) && types.length ) {
 		const a2 = computeArena(), fitsDice = meshes.every( ( m, i ) => ! m.visible || ( Math.abs( m.position.x ) < a2.hx - types[ i ].circumR && Math.abs( m.position.z ) < a2.hz - types[ i ].circumR ) );
 		if ( fitsDice ) { arena = a2; buildRails( arena.hx, arena.hz ); fitLightsToArena( arena.hx, arena.hz ); }
 	}
@@ -2940,8 +2969,282 @@ canvas.addEventListener( 'pointerup', ( e ) => {
 	}
 	down = null;
 } );
-// With tap-to-re-roll on, show a pointer over resting dice.
-canvas.addEventListener( 'pointermove', ( e ) => { if ( params.reroll && ! down ) canvas.style.cursor = anim.phase === 'done' && dieAt( e ) >= 0 ? 'pointer' : ''; } );
+// Dice can be grabbed (and, with tap-to-re-roll, tapped): show it under a mouse.
+canvas.addEventListener( 'pointermove', ( e ) => { if ( e.pointerType === 'mouse' && ! down && ! grab ) canvas.style.cursor = canHold() && anim.phase !== 'play' && dieAt( e ) >= 0 ? 'grab' : ''; } );
+
+/* ------------------------------------------------------------------ *
+ * Throw them yourself: grab and fling the dice, or shake the phone like a dice cup.
+ * The dice float in the hand, jostling and rattling; letting go hands the motion to physics.
+ * ------------------------------------------------------------------ */
+const hand = { mode: null, touch: false, center: V3(), target: V3(), vel: V3(), local: [], cr: 1, from: null, q: [], axis: [], rate: [], seed: [], lift: 0, energy: 0, trail: [], t0: 0, knock: 0 };
+const hTmp = V3(), hTmp2 = V3(), hGoal = V3(), hQ = new THREE.Quaternion();
+const handHeight = () => Math.max( ...types.map( ( t ) => t.circumR ) ) * 1.3 + 2.4;
+const canHold = () => !! RAPIER && types.length > 0 && meshes[ 0 ].visible && anim.phase !== 'gather' && anim.phase !== 'held' && anim.phase !== 'live';
+function clampToTray( p, margin ) {
+	p.x = clamp( p.x, -Math.max( 0, arena.hx - margin ), Math.max( 0, arena.hx - margin ) );
+	p.z = clamp( p.z, -Math.max( 0, arena.hz - margin ), Math.max( 0, arena.hz - margin ) );
+	return p;
+}
+// Pushes overlapping bounding spheres apart, so dice never pass through each other in the hand.
+function separate( ps, pad ) {
+	for ( let it = 0; it < 4; it++ ) for ( let i = 0; i < ps.length; i++ ) for ( let j = i + 1; j < ps.length; j++ ) {
+		const d = hTmp.subVectors( ps[ j ], ps[ i ] ), L = d.length(), min = types[ i ].circumR + types[ j ].circumR + pad;
+		if ( L >= min ) continue;
+		if ( L < 1e-4 ) d.set( 1, 0, 0 ); else d.divideScalar( L );
+		ps[ i ].addScaledVector( d, -( min - L ) / 2 ); ps[ j ].addScaledVector( d, ( min - L ) / 2 );
+	}
+}
+// Horizontal directions on the table as seen from the camera.
+function camAxes() {
+	const fwd = V3().subVectors( controls.target, camera.position ).setY( 0 ).normalize();
+	return { fwd, right: V3( -fwd.z, 0, fwd.x ) };
+}
+function beginHold( mode, at ) {
+	if ( ! canHold() ) return false;
+	ensureAudio(); hideResults();
+	const n = types.length, rng = mulberry32( ( Math.random() * 4294967296 ) >>> 0 );
+	// A loose handful: enough room that the jostling never makes two dice touch.
+	const order = types.map( ( t, i ) => i ).sort( ( a, b ) => types[ b ].circumR - types[ a ].circumR ), local = new Array( n );
+	for ( const i of order ) {
+		const R = types[ i ].circumR; let placed = null;
+		for ( let k = 0; k < 4000 && ! placed; k++ ) {
+			const p = randUnit( rng ).multiplyScalar( ( 0.05 + k * 0.004 ) * Math.cbrt( rng() ) ); p.y *= 0.6;
+			if ( local.every( ( q, j ) => ! q || q.distanceTo( p ) >= R + types[ j ].circumR + 0.15 ) ) placed = p;
+		}
+		local[ i ] = placed || V3( 0, 3 * i, 0 );
+	}
+	Object.assign( hand, {
+		mode, local, cr: Math.max( ...local.map( ( p, i ) => p.length() + types[ i ].circumR ) ),
+		from: meshes.map( ( m ) => ( { p: m.position.clone(), q: m.quaternion.clone() } ) ),
+		axis: types.map( () => randUnit( rng ) ), rate: types.map( () => 1.2 + rng() * 2 ), seed: types.map( () => rng() * 100 ),
+		lift: 0, energy: 0, trail: [], t0: performance.now(), knock: 0.15,
+	} );
+	hand.q = hand.from.map( ( f ) => f.q.clone() );
+	hand.target.copy( at ); clampToTray( hand.target, hand.cr + 0.3 );
+	hand.center.copy( hand.target ); hand.vel.set( 0, 0, 0 );
+	anim.phase = 'held';
+	return true;
+}
+function updateHand( dt, now ) {
+	const n = types.length, prev = hTmp2.copy( hand.center );
+	hand.center.lerp( hand.target, 1 - Math.exp( -dt * 16 ) );
+	hand.vel.lerp( prev.subVectors( hand.center, prev ).divideScalar( Math.max( dt, 1e-3 ) ), 0.3 );
+	const motion = clamp( hand.vel.length() / 24, 0, 1 );
+	hand.lift = Math.min( 1, hand.lift + dt / 0.3 );
+	const e = easeInOut( hand.lift ), amp = 0.03 + 0.1 * motion, ps = [];
+	for ( let i = 0; i < n; i++ ) {
+		const s = hand.seed[ i ], L = hand.local[ i ];
+		hGoal.set(
+			hand.center.x + L.x + Math.sin( now * 7.3 + s ) * amp,
+			hand.center.y + L.y + Math.sin( now * 9.1 + s * 1.7 ) * amp * 0.8,
+			hand.center.z + L.z + Math.sin( now * 8.2 + s * 2.3 ) * amp );
+		ps.push( hand.from[ i ].p.clone().lerp( hGoal, e ) );
+		hand.q[ i ].premultiply( hQ.setFromAxisAngle( hand.axis[ i ], hand.rate[ i ] * ( 1 + motion * 6 ) * dt ) );
+		meshes[ i ].quaternion.slerpQuaternions( hand.from[ i ].q, hand.q[ i ], e );
+	}
+	separate( ps, 0.04 );
+	ps.forEach( ( p, i ) => meshes[ i ].position.copy( clampToTray( p, types[ i ].circumR + 0.05 ) ) );
+	// The rattle: dice knocking together in the hand, faster and louder the harder it moves.
+	hand.knock -= dt;
+	if ( hand.lift > 0.6 && hand.knock <= 0 && ( n > 1 || motion > 0.25 ) && Math.random() < dt * ( 1.2 + motion * 18 ) ) {
+		playHit( 'dice', 2.5 + motion * 10, 1 ); hand.knock = 0.035;
+		if ( hand.touch && navigator.vibrate ) navigator.vibrate( Math.round( 5 + motion * 12 ) );
+	}
+}
+// Letting go: `flick` is the hand's horizontal velocity on the table, in world units per second.
+function releaseHold( flick ) {
+	if ( anim.phase !== 'held' ) return;
+	const n = types.length, poses = meshes.map( ( m ) => ( { p: m.position.clone(), q: m.quaternion.clone() } ) );
+	separate( poses.map( ( p ) => p.p ), 0.02 );
+	poses.forEach( ( p, i ) => { clampToTray( p.p, types[ i ].circumR + 0.05 ); meshes[ i ].position.copy( p.p ); } );
+	const hs = Math.hypot( flick.x, flick.z ), sp = Math.min( hs, 34 ), drop = sp < 3;
+	const dir = hs > 1e-3 ? V3( flick.x / hs, 0, flick.z / hs ) : camAxes().fwd;
+	const roll = V3( dir.z, 0, -dir.x ), up = drop ? 1.5 : 7 + sp * 0.42;
+	const v = [], w = [];
+	for ( let i = 0; i < n; i++ ) {
+		v.push( dir.clone().multiplyScalar( drop ? 0 : sp ).add( hand.vel.clone().setY( 0 ).multiplyScalar( drop ? 0.3 : 0 ) ).setY( up ) );
+		w.push( hand.axis[ i ].clone().multiplyScalar( hand.rate[ i ] * 2 ).addScaledVector( roll, drop ? 7 : 6 + sp * 0.7 ) );
+	}
+	anim.phase = 'done';
+	const r = planRoll( { poses, v, w } );
+	r.id = ++rollSeq; r.time = new Date(); r.arena = { ...arena };
+	rollHistory.unshift( r ); if ( rollHistory.length > 50 ) rollHistory.pop();
+	playRoll( r, 1 );
+}
+
+/* Grab and fling (mouse, pen or finger) */
+let grab = null;
+function handPoint( e ) {
+	const rect = canvas.getBoundingClientRect();
+	pointerNdc.set( ( ( e.clientX - rect.left ) / rect.width ) * 2 - 1, -( ( e.clientY - rect.top ) / rect.height ) * 2 + 1 );
+	ray.setFromCamera( pointerNdc, camera );
+	const H = handHeight(), d = ray.ray.direction, o = ray.ray.origin;
+	if ( Math.abs( d.y ) < 1e-3 ) return null;
+	const t = ( H - o.y ) / d.y;
+	return t > 0 ? o.clone().addScaledVector( d, Math.min( t, 400 ) ) : null;
+}
+// The throw velocity: how far the pointer travelled on the hand's plane over the last ~0.1 s.
+function trailVelocity() {
+	const now = performance.now(), tr = hand.trail.filter( ( s ) => now - s.t < 110 );
+	if ( tr.length < 2 ) return V3();
+	const a = tr[ 0 ], b = tr[ tr.length - 1 ], dt = Math.max( ( b.t - a.t ) / 1000, 1 / 60 );
+	return b.p.clone().sub( a.p ).divideScalar( dt ).multiplyScalar( 0.5 ).setY( 0 );
+}
+function endGrab() { grab = null; controls.enabled = true; canvas.style.cursor = ''; }
+// Capture phase: decide before the orbit controls do whether this press grabs the dice.
+canvas.addEventListener( 'pointerdown', ( e ) => {
+	if ( grab || ( e.pointerType === 'mouse' && e.button !== 0 ) || ! canHold() || dieAt( e ) < 0 ) return;
+	grab = { id: e.pointerId, x: e.clientX, y: e.clientY, touch: e.pointerType !== 'mouse' };
+	controls.enabled = false;
+}, { capture: true } );
+addEventListener( 'pointermove', ( e ) => {
+	if ( ! grab || e.pointerId !== grab.id ) return;
+	if ( anim.phase !== 'held' ) {
+		if ( Math.hypot( e.clientX - grab.x, e.clientY - grab.y ) < 7 ) return;
+		const at = handPoint( e );
+		if ( ! at || ! beginHold( 'pointer', at ) ) { endGrab(); return; }
+		hand.touch = grab.touch; canvas.style.cursor = 'grabbing';
+		try { canvas.setPointerCapture( e.pointerId ); } catch ( err ) {}
+	}
+	if ( hand.mode !== 'pointer' ) return;
+	const at = handPoint( e ); if ( ! at ) return;
+	hand.target.copy( at ); clampToTray( hand.target, hand.cr + 0.3 );
+	const now = performance.now();
+	hand.trail.push( { t: now, p: at } ); while ( hand.trail.length > 2 && now - hand.trail[ 0 ].t > 200 ) hand.trail.shift();
+} );
+const letGo = ( e, cancel ) => {
+	if ( ! grab || e.pointerId !== grab.id ) return;
+	const held = anim.phase === 'held' && hand.mode === 'pointer';
+	endGrab();
+	if ( held ) { down = null; releaseHold( cancel ? V3() : trailVelocity() ); }
+};
+addEventListener( 'pointerup', ( e ) => letGo( e, false ), true );
+addEventListener( 'pointercancel', ( e ) => letGo( e, true ), true );
+
+/*
+ * Shake to roll (phones): the tray becomes a box in your hands. Physics runs live, and every
+ * movement of the phone pushes the dice the opposite way (they lag behind the box, as loose dice
+ * do), so you watch them slam into the walls as you shake. Hold the phone still and the throw
+ * finishes from exactly that moment with the recorded physics, so forced results still land.
+ */
+const shakeBtn = $( '#shakeBtn' );
+const shakeSupported = 'DeviceMotionEvent' in window && navigator.maxTouchPoints > 0 && matchMedia( '(pointer: coarse)' ).matches;
+const shake = { on: false, listening: false, seen: false, g: null, a: { x: 0, y: 0, z: 0 }, mag: 0, at: 0 };
+const live = { world: null, bodies: null, acc: 0, t: 0, prevV: null, lastHit: null, quietSince: 0, started: 0 };
+const PHONE_TO_WORLD = G / 9.81; // m/s² on the phone to tray units
+function onMotion( e ) {
+	shake.seen = true;
+	let a = e.acceleration;
+	if ( ! a || a.x == null ) {
+		// No gravity-free reading: take gravity out with a slow low-pass of the raw one.
+		const ag = e.accelerationIncludingGravity; if ( ! ag || ag.x == null ) return;
+		if ( ! shake.g ) shake.g = { x: ag.x, y: ag.y, z: ag.z };
+		for ( const k of [ 'x', 'y', 'z' ] ) shake.g[ k ] += ( ag[ k ] - shake.g[ k ] ) * 0.08;
+		a = { x: ag.x - shake.g.x, y: ag.y - shake.g.y, z: ag.z - shake.g.z };
+	}
+	shake.a = { x: a.x || 0, y: a.y || 0, z: a.z || 0 }; shake.mag = Math.hypot( shake.a.x, shake.a.y, shake.a.z ); shake.at = performance.now();
+	if ( shake.on && anim.phase !== 'live' && shake.mag > 11 && ! $( '#config' ).open ) startLive();
+}
+function startLive() {
+	if ( ! RAPIER || ! types.length || ! meshes[ 0 ].visible || anim.phase === 'gather' || anim.phase === 'held' ) return false;
+	// Caught mid-roll: carry on with the dice's current speed.
+	let vel = null;
+	if ( anim.phase === 'play' && anim.roll ) {
+		const F = anim.roll.frames, f = clamp( Math.floor( anim.t / DT ), 1, F.length - 1 );
+		vel = types.map( ( t, i ) => V3( F[ f ][ i * 7 ] - F[ f - 1 ][ i * 7 ], F[ f ][ i * 7 + 1 ] - F[ f - 1 ][ i * 7 + 1 ], F[ f ][ i * 7 + 2 ] - F[ f - 1 ][ i * 7 + 2 ] ).divideScalar( DT ) );
+	}
+	ensureAudio(); hideResults(); endLiveWorld();
+	live.world = makeWorld();
+	live.bodies = meshes.map( ( m, i ) => addDieBody( live.world, types[ i ], m.position, m.quaternion, vel ? vel[ i ] : V3(), V3() ) );
+	live.prevV = live.bodies.map( ( b ) => { const v = b.linvel(); return V3( v.x, v.y, v.z ); } );
+	live.lastHit = types.map( () => -1 ); live.acc = 0; live.t = 0; live.quietSince = 0; live.started = performance.now();
+	anim.phase = 'live';
+	return true;
+}
+function endLiveWorld() { if ( live.world ) { live.world.free(); live.world = null; live.bodies = null; } }
+const livePush = V3();
+function stepLive( dt ) {
+	const now = performance.now(), fresh = now - shake.at < 200, a = fresh ? shake.a : { x: 0, y: 0, z: 0 };
+	// The box accelerates one way, the dice feel it the other: phone x is screen right, y is screen
+	// up (away across the table), z comes out of the screen (up from the table).
+	const { fwd, right } = camAxes();
+	livePush.set( 0, 0, 0 ).addScaledVector( right, -a.x ).addScaledVector( fwd, -a.y ).add( hTmp.set( 0, -a.z * 0.6, 0 ) ).multiplyScalar( PHONE_TO_WORLD * 1.1 );
+	if ( livePush.length() > 420 ) livePush.setLength( 420 );
+	const n = types.length, hits = [];
+	live.acc = Math.min( live.acc + dt, DT * 4 );
+	while ( live.acc >= DT ) {
+		for ( const b of live.bodies ) { const v = b.linvel(); b.setLinvel( { x: v.x + livePush.x * DT, y: v.y + livePush.y * DT, z: v.z + livePush.z * DT }, true ); }
+		live.world.step(); live.acc -= DT; live.t += DT;
+		live.bodies.forEach( ( b, i ) => {
+			const v = b.linvel(), pv = live.prevV[ i ];
+			const dv = Math.hypot( v.x - pv.x - livePush.x * DT, v.y - pv.y + ( G - livePush.y ) * DT, v.z - pv.z - livePush.z * DT );
+			if ( dv > 2.5 && live.t - live.lastHit[ i ] > 0.05 ) { live.lastHit[ i ] = live.t; hits.push( { i, s: dv } ); }
+			pv.set( v.x, v.y, v.z );
+		} );
+	}
+	// Every knock is heard, and felt on phones that can buzz.
+	hits.sort( ( x, y ) => y.s - x.s ).slice( 0, 3 ).forEach( ( h, k ) => {
+		const p = live.bodies[ h.i ].translation(), R = types[ h.i ].circumR;
+		let kind = 'floor';
+		for ( let j = 0; j < n; j++ ) { if ( j === h.i ) continue; const q = live.bodies[ j ].translation(); if ( Math.hypot( p.x - q.x, p.y - q.y, p.z - q.z ) < R + types[ j ].circumR + 0.06 ) { kind = 'dice'; break; } }
+		if ( kind === 'floor' && ( Math.abs( p.x ) > arena.hx - R - 0.1 || Math.abs( p.z ) > arena.hz - R - 0.1 ) ) kind = 'wall';
+		playHit( kind, h.s, 1 );
+		if ( k === 0 && navigator.vibrate ) navigator.vibrate( Math.round( clamp( h.s * 0.8, 6, 28 ) ) );
+	} );
+	live.bodies.forEach( ( b, i ) => { const p = b.translation(), q = b.rotation(); meshes[ i ].position.set( p.x, p.y, p.z ); meshes[ i ].quaternion.set( q.x, q.y, q.z, q.w ); } );
+	// Held still for a moment: let the dice land.
+	if ( fresh && shake.mag > 6 ) live.quietSince = 0; else if ( ! live.quietSince ) live.quietSince = now;
+	if ( live.quietSince && now - live.quietSince > 350 && now - live.started > 400 ) handOffLive();
+}
+// Finish the throw offline from the exact live state, then play it back seamlessly.
+function handOffLive() {
+	const poses = [], v = [], w = [];
+	live.bodies.forEach( ( b, i ) => {
+		const t = types[ i ], p = b.translation(), q = b.rotation(), lv = b.linvel(), av = b.angvel();
+		const pose = { p: V3( p.x, p.y, p.z ), q: new THREE.Quaternion( q.x, q.y, q.z, q.w ) };
+		const vv = V3( lv.x, lv.y, lv.z ), ww = V3( av.x, av.y, av.z );
+		// A die with a set result that already lies still takes one last hop as the phone stops,
+		// so its number can change while it spins.
+		const forced = params.reverse[ i ] != null || params.weights[ t.N ];
+		if ( forced && vv.length() < 2 && ww.length() < 3 && ( params.weights[ t.N ] || t.faces[ readFace( t, pose.q ) ].label !== params.reverse[ i ] ) ) {
+			vv.set( ( Math.random() - 0.5 ) * 4, 17 + Math.random() * 5, ( Math.random() - 0.5 ) * 4 );
+			ww.copy( randUnit( Math.random ) ).multiplyScalar( 24 + Math.random() * 14 );
+		}
+		poses.push( pose ); v.push( vv ); w.push( ww );
+	} );
+	endLiveWorld();
+	anim.phase = 'done';
+	const r = planRoll( { poses, v, w, exact: true } );
+	r.id = ++rollSeq; r.time = new Date(); r.arena = { ...arena };
+	rollHistory.unshift( r ); if ( rollHistory.length > 50 ) rollHistory.pop();
+	playRoll( r, 1 );
+}
+function listenMotion() { if ( ! shake.listening ) { addEventListener( 'devicemotion', onMotion ); shake.listening = true; } }
+async function askMotion() {
+	if ( typeof DeviceMotionEvent.requestPermission !== 'function' ) return true;
+	try { return ( await DeviceMotionEvent.requestPermission() ) === 'granted'; } catch ( err ) { return false; }
+}
+const applyShake = () => { shakeBtn.setAttribute( 'aria-pressed', String( shake.on ) ); shakeBtn.title = shake.on ? 'Shake to roll is on' : 'Shake to roll'; };
+shakeBtn.hidden = ! shakeSupported;
+shakeBtn.addEventListener( 'click', async () => {
+	if ( shake.on ) shake.on = false;
+	else {
+		if ( ! ( await askMotion() ) ) { toast( 'Motion access was not allowed, so shaking can\'t move the dice.' ); return; }
+		listenMotion(); shake.on = true; ensureAudio();
+		toast( 'Shake your phone: the dice tumble with it. Hold still to let them land.' );
+	}
+	try { localStorage.setItem( 'dice.shake', shake.on ? '1' : '0' ); } catch ( err ) {}
+	applyShake();
+} );
+if ( shakeSupported ) {
+	try { shake.on = localStorage.getItem( 'dice.shake' ) === '1'; } catch ( err ) {}
+	if ( shake.on ) {
+		listenMotion();
+		// iOS asks again each visit; the first tap anywhere quietly renews the permission.
+		if ( typeof DeviceMotionEvent.requestPermission === 'function' ) addEventListener( 'touchend', () => { if ( ! shake.seen ) askMotion(); }, { once: true } );
+	}
+	applyShake();
+}
 $( '#rollBtn' ).addEventListener( 'click', () => roll() );
 $( '#replayBtn' ).addEventListener( 'click', () => replaySlow() );
 const soundBtn = $( '#soundBtn' );
@@ -2990,7 +3293,7 @@ document.querySelector( 'meta[name="theme-color"]' ).setAttribute( 'content', th
 /* ------------------------------------------------------------------ *
  * Boot
  * ------------------------------------------------------------------ */
-window.__dice = { params, results: null, get types() { return types; }, get scene() { return scene; }, get camera() { return camera; }, get controls() { return controls; }, get renderer() { return renderer; }, get composer() { return composer; }, get scenePass() { return scenePass; }, planNudge: ( i ) => planNudge( i ), planRoll: () => planRoll(), sim: ( seed ) => simulate( seed ) };
+window.__dice = { params, results: null, get types() { return types; }, get scene() { return scene; }, get camera() { return camera; }, get controls() { return controls; }, get renderer() { return renderer; }, get composer() { return composer; }, get scenePass() { return scenePass; }, get anim() { return anim; }, shake: () => shake, onMotion: ( e ) => onMotion( e ), startLive: () => startLive(), stepLive: ( dt ) => stepLive( dt ), get history() { return rollHistory; }, planNudge: ( i ) => planNudge( i ), planRoll: () => planRoll(), sim: ( seed ) => simulate( seed ) };
 ( async () => {
 	try {
 		const fontReady = Promise.race( [ document.fonts.load( fontStr( 100 ) ).then( () => document.fonts.ready ), new Promise( ( r ) => setTimeout( r, 3000 ) ) ] );
