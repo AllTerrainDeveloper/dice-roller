@@ -1635,7 +1635,7 @@ function buildLights() {
 	// Every light in the scene casts its own soft shadow, so dice show one shadow per light source.
 	const point = ( col, inten, pos, flicker = false ) => {
 		const l = new THREE.PointLight( col, inten, 0, 2 ); l.position.set( ...pos );
-		l.castShadow = true; l.shadow.mapSize.set( HQ ? 1024 : 512, HQ ? 1024 : 512 ); l.shadow.bias = -0.0008; l.shadow.normalBias = 0.01; l.shadow.radius = 5; l.shadow.camera.near = 0.3; l.shadow.camera.far = 60;
+		l.castShadow = true; l.shadow.mapSize.set( HQ ? 1024 : 512, HQ ? 1024 : 512 ); l.shadow.bias = -0.0015; l.shadow.normalBias = 0.035; l.shadow.radius = 5; l.shadow.camera.near = 0.3; l.shadow.camera.far = 60;
 		scene.add( l ); if ( flicker ) flickers.push( { l, base: inten, seed: Math.random() * 100 } ); return l;
 	};
 	if ( key === 'felt' ) {
@@ -1910,7 +1910,7 @@ function buildCandles( hx, hz ) {
 		const halo = new THREE.Sprite( new THREE.SpriteMaterial( { map: glowTex(), color: 0xffa050, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.22, fog: false } ) );
 		halo.scale.setScalar( 0.85 ); halo.position.y = top + 0.18; g.add( halo );
 		const light = new THREE.PointLight( 0xff9440, 40, 0, 1.35 ); light.position.y = top + 0.4; light.castShadow = true;
-		light.shadow.mapSize.set( shadowRes, shadowRes ); light.shadow.bias = -0.0008; light.shadow.normalBias = 0.01; light.shadow.radius = 4; light.shadow.camera.near = 0.15; light.shadow.camera.far = 40;
+		light.shadow.mapSize.set( shadowRes, shadowRes ); light.shadow.bias = -0.0015; light.shadow.normalBias = 0.035; light.shadow.radius = 4; light.shadow.camera.near = 0.15; light.shadow.camera.far = 40;
 		g.add( light );
 		railGroup.add( g );
 		candles.push( { light, flame, halo, base: 40, seed, ly: top + 0.4 } );
