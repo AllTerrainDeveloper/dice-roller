@@ -927,11 +927,11 @@ function addCaustics( mat ) {
 	mat.customProgramCacheKey = () => 'caustic-floor-v1';
 }
 // --- Coloured shadows through glass dice --------------------------------------------
-// A shadow map only knows "blocked or not", so glass dice cast a thin, see-through shadow
-// there (alpha-hashed, which keeps the die's true outline), and every surface that receives
-// shadows tints each light by the glass it passes through: the die is treated as a soft ball
-// of coloured glass, darker at the rim where light bends away, bright where it focuses.
-const GLASS_MAX = 16, GLASS_SHADOW = 0.32;
+// A shadow map only knows "blocked or not", so glass dice stay out of it. Instead every
+// surface that receives shadows tints each light by the glass it passes through: the die is
+// treated as a soft ball of coloured glass, darker at the rim where light bends away, bright
+// where it focuses. It is smooth and analytic, so it never shimmers as the candles sway.
+const GLASS_MAX = 16;
 const glassU = {
 	uGlassN: { value: 0 },
 	uGlassS: { value: Array.from( { length: GLASS_MAX }, () => new THREE.Vector4() ) },
@@ -950,7 +950,7 @@ vec3 glassTint( vec3 p, vec3 L, float maxT ) {
 		float x = sqrt( max( dot( c, c ) - b * b, 0.0 ) ) / r;
 		if ( x >= 1.0 ) continue;
 		float cover = 1.0 - smoothstep( 0.55, 1.0, x ), x2 = x * x;
-		vec3 col = uGlassC[ k ] * ( 0.3 + 0.3 * ( 1.0 - x2 ) + 3.2 * exp( - x2 * 5.0 ) );
+		vec3 col = uGlassC[ k ] * ( 0.2 + 0.25 * ( 1.0 - x2 ) + 3.0 * exp( - x2 * 5.0 ) );
 		t *= mix( vec3( 1.0 ), col, cover );
 	}
 	return t;
@@ -994,7 +994,7 @@ function addGlassShadows( mat ) {
 			.replace( '#include <lights_fragment_begin>', GLASS_LIGHTS )
 			.replace( '#include <lights_fragment_end>', '#include <lights_fragment_end>\n\treflectedLight.indirectDiffuse *= glassAmbient( geometryPosition );' );
 	};
-	mat.customProgramCacheKey = () => baseKey + '|glass-shadow-v2';
+	mat.customProgramCacheKey = () => baseKey + '|glass-shadow-v3';
 	return mat;
 }
 const isGlass = ( pal ) => ( pal.transmission ?? 0 ) >= 0.5;
@@ -1003,21 +1003,6 @@ function glassShadowColor( pal ) {
 	const c = new THREE.Color( pal.body ), m = Math.max( c.r, c.g, c.b, 1e-3 );
 	c.multiplyScalar( 1 / m );
 	return c.lerp( new THREE.Color( 1, 1, 1 ), 0.06 ).multiplyScalar( 0.55 + 0.45 * pal.transmission );
-}
-let glassDepthMat = null, glassDistanceMat = null;
-function glassShadowCaster( m ) {
-	if ( ! glassDepthMat ) {
-		// Shadow-map materials ignore opacity (and three copies the die's own alpha map onto
-		// them), so the coverage is set in the shader, just before the alpha hash.
-		const hashed = ( mat ) => {
-			mat.onBeforeCompile = ( sh ) => { sh.fragmentShader = sh.fragmentShader.replace( '#include <alphahash_fragment>', `diffuseColor.a = ${ GLASS_SHADOW.toFixed( 3 ) };\n#include <alphahash_fragment>` ); };
-			mat.customProgramCacheKey = () => 'glass-caster-' + GLASS_SHADOW;
-			return mat;
-		};
-		glassDepthMat = hashed( new THREE.MeshDepthMaterial( { depthPacking: THREE.RGBADepthPacking, alphaHash: true } ) );
-		glassDistanceMat = hashed( new THREE.MeshDistanceMaterial( { alphaHash: true } ) );
-	}
-	m.customDepthMaterial = glassDepthMat; m.customDistanceMaterial = glassDistanceMat;
 }
 function updateGlassShadows() {
 	let n = 0;
@@ -2721,9 +2706,9 @@ function makeDice() {
 	meshes = types.map( ( t, i ) => {
 		const geo = theme.stone ? t.geometry.clone().scale( 0.97 + 0.06 * Math.random(), 0.97 + 0.06 * Math.random(), 0.97 + 0.06 * Math.random() ) : t.geometry;
 		const m = new THREE.Mesh( geo, makeDieMaterial( palettes[ i ], t ) );
-		// Glass lets the light through: a thin see-through shadow, coloured by the glass.
-		m.castShadow = true;
-		if ( isGlass( palettes[ i ] ) ) { glassShadowCaster( m ); m.userData.glassColor = glassShadowColor( palettes[ i ] ); }
+		// Glass lets the light through: its shadow is drawn by the receivers, coloured by the glass.
+		m.castShadow = ! isGlass( palettes[ i ] );
+		if ( ! m.castShadow ) m.userData.glassColor = glassShadowColor( palettes[ i ] );
 		m.receiveShadow = true; m.visible = false; scene.add( m ); return m;
 	} );
 	aoTextures();

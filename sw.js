@@ -4,7 +4,7 @@
  * - Pinned CDN libraries (three.js, Rapier) and Google Fonts are cached on first use and served cache-first,
  *   which makes the app work fully offline after one online visit.
  */
-const VERSION = 'dice-v26';
+const VERSION = 'dice-v27';
 const SHELL = [ './', './index.html', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png' ];
 const CDN = [ 'cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com' ];
 
