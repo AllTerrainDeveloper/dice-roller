@@ -3155,12 +3155,13 @@ addEventListener( 'pointercancel', ( e ) => letGo( e, true ), true );
  */
 const shakeBtn = $( '#shakeBtn' );
 const shakeSupported = 'DeviceMotionEvent' in window && navigator.maxTouchPoints > 0 && matchMedia( '(pointer: coarse)' ).matches;
-const shake = { on: false, listening: false, seen: false, g: null, a: { x: 0, y: 0, z: 0 }, mag: 0, at: 0 };
+const shake = { on: false, listening: false, seen: false, g: null, a: { x: 0, y: 0, z: 0 }, mag: 0, at: 0, count: 0, peak: 0, starts: 0, perm: 'not asked', src: '-' };
 const live = { world: null, bodies: null, acc: 0, t: 0, prevV: null, lastHit: null, quietSince: 0, started: 0 };
 const PHONE_TO_WORLD = G / 9.81; // m/s² on the phone to tray units
 function onMotion( e ) {
-	shake.seen = true;
+	shake.seen = true; shake.count++;
 	let a = e.acceleration;
+	shake.src = a && a.x != null ? 'acceleration' : 'with gravity';
 	if ( ! a || a.x == null ) {
 		// No gravity-free reading: take gravity out with a slow low-pass of the raw one.
 		const ag = e.accelerationIncludingGravity; if ( ! ag || ag.x == null ) return;
@@ -3168,7 +3169,7 @@ function onMotion( e ) {
 		for ( const k of [ 'x', 'y', 'z' ] ) shake.g[ k ] += ( ag[ k ] - shake.g[ k ] ) * 0.08;
 		a = { x: ag.x - shake.g.x, y: ag.y - shake.g.y, z: ag.z - shake.g.z };
 	}
-	shake.a = { x: a.x || 0, y: a.y || 0, z: a.z || 0 }; shake.mag = Math.hypot( shake.a.x, shake.a.y, shake.a.z ); shake.at = performance.now();
+	shake.a = { x: a.x || 0, y: a.y || 0, z: a.z || 0 }; shake.mag = Math.hypot( shake.a.x, shake.a.y, shake.a.z ); shake.at = performance.now(); shake.peak = Math.max( shake.peak * 0.995, shake.mag );
 	if ( shake.on ) { shakeBtn.style.setProperty( '--tilt', clamp( shake.a.x / 12, -1, 1 ).toFixed( 2 ) ); shakeBtn.style.setProperty( '--lvl', clamp( shake.mag / 18, 0, 1 ).toFixed( 2 ) ); }
 	if ( shake.on && anim.phase !== 'live' && shake.mag > 9 && ! $( '#config' ).open ) startLive();
 }
@@ -3185,7 +3186,7 @@ function startLive() {
 	live.bodies = meshes.map( ( m, i ) => addDieBody( live.world, types[ i ], m.position, m.quaternion, vel ? vel[ i ] : V3(), V3() ) );
 	live.prevV = live.bodies.map( ( b ) => { const v = b.linvel(); return V3( v.x, v.y, v.z ); } );
 	live.lastHit = types.map( () => -1 ); live.acc = 0; live.t = 0; live.quietSince = 0; live.started = performance.now();
-	anim.phase = 'live';
+	anim.phase = 'live'; shake.starts++;
 	return true;
 }
 function endLiveWorld() { if ( live.world ) { live.world.free(); live.world = null; live.bodies = null; } }
@@ -3249,7 +3250,7 @@ function handOffLive() {
 function listenMotion() { if ( ! shake.listening ) { addEventListener( 'devicemotion', onMotion ); shake.listening = true; } }
 async function askMotion() {
 	if ( typeof DeviceMotionEvent.requestPermission !== 'function' ) return true;
-	try { return ( await DeviceMotionEvent.requestPermission() ) === 'granted'; } catch ( err ) { return false; }
+	try { shake.perm = 'asking…'; shake.perm = await DeviceMotionEvent.requestPermission(); return shake.perm === 'granted'; } catch ( err ) { shake.perm = 'error: ' + ( err && err.name || err ); return false; }
 }
 const applyShake = () => { shakeBtn.setAttribute( 'aria-pressed', String( shake.on ) ); shakeBtn.title = shake.on ? 'Shake to roll is on' : 'Shake to roll'; };
 shakeBtn.hidden = ! shakeSupported;
@@ -3276,6 +3277,36 @@ if ( shakeSupported ) {
 		if ( typeof DeviceMotionEvent.requestPermission === 'function' ) addEventListener( 'touchend', () => { if ( ! shake.seen ) askMotion(); }, { once: true } );
 	}
 	applyShake();
+}
+// ?debug=1 shows what the motion pipeline sees, step by step (for testing on real phones).
+if ( new URLSearchParams( location.search ).has( 'debug' ) ) {
+	const box = document.createElement( 'div' );
+	box.style.cssText = 'position:fixed;left:10px;top:calc(max(14px, env(safe-area-inset-top)) + 52px);z-index:50;max-width:min(330px,calc(100vw - 20px));padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.78);color:#e8f0ff;font:11px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;pointer-events:auto';
+	const out = document.createElement( 'div' ), row = document.createElement( 'div' );
+	row.style.cssText = 'display:flex;gap:6px;margin-top:8px;flex-wrap:wrap';
+	const mk = ( label, fn ) => { const b = document.createElement( 'button' ); b.type = 'button'; b.textContent = label; b.style.cssText = 'font:600 11px system-ui;padding:6px 9px;border-radius:8px;border:0;background:#3b82f6;color:#fff'; b.addEventListener( 'click', fn ); row.appendChild( b ); };
+	mk( 'Ask permission', async () => { const ok = await askMotion(); if ( ok ) listenMotion(); } );
+	mk( 'Listen', () => listenMotion() );
+	mk( 'Shake mode on', () => { listenMotion(); shake.on = true; applyShake(); } );
+	box.append( out, row ); document.body.appendChild( box );
+	let last = 0, lastT = performance.now(), rate = 0;
+	setInterval( () => {
+		const now = performance.now(); rate = Math.round( ( shake.count - last ) / ( ( now - lastT ) / 1000 ) ); last = shake.count; lastT = now;
+		const f = ( v ) => ( v >= 0 ? ' ' : '' ) + v.toFixed( 1 );
+		out.textContent = [
+			`secure context   ${ window.isSecureContext }`,
+			`DeviceMotionEvt  ${ 'DeviceMotionEvent' in window }`,
+			`requestPermission ${ typeof window.DeviceMotionEvent?.requestPermission === 'function' ? 'yes (iOS)' : 'no' }`,
+			`touch points     ${ navigator.maxTouchPoints }  coarse ${ matchMedia( '(pointer: coarse)' ).matches }`,
+			`button shown     ${ ! shakeBtn.hidden }   shake on ${ shake.on }`,
+			`permission       ${ shake.perm }`,
+			`listening        ${ shake.listening }`,
+			`readings         ${ shake.count } (${ rate }/s)  src ${ shake.src }`,
+			`accel m/s²       x${ f( shake.a.x ) } y${ f( shake.a.y ) } z${ f( shake.a.z ) }`,
+			`strength         ${ shake.mag.toFixed( 1 ) }  peak ${ shake.peak.toFixed( 1 ) }  (start > 9)`,
+			`phase            ${ anim.phase }   live starts ${ shake.starts }`,
+		].join( '\n' );
+	}, 250 );
 }
 $( '#rollBtn' ).addEventListener( 'click', () => roll() );
 $( '#replayBtn' ).addEventListener( 'click', () => replaySlow() );
