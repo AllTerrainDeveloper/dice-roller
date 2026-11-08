@@ -982,7 +982,7 @@ const THEMES = {
 		],
 	},
 	medieval: {
-		name: 'Medieval Castle', bg: '#07050a', fog: '#08060a', exposure: 1.25, env: 'candle', envIntensity: 0.48,
+		name: 'Medieval Castle', bg: '#07050a', fog: '#08060a', exposure: 1.25, env: 'candle', envIntensity: 0.75,
 		bloom: [ 0.22, 0.5, 0.92 ], font: [ 400, '"MedievalSharp"' ], candles: true,
 		css: { '--accent': '#ffb35c', '--accent2': '#b5541c', '--text': '#f7e9d6', '--muted': 'rgba(247,233,214,.6)', '--glass': 'rgba(14,9,6,.55)', '--vig': 'rgba(0,0,0,.72)', '--bg': '#07050a', '--btn-fg': '#2a1406' },
 		phys: { floorFriction: 0.55, floorRest: 0.3, wallRest: 0.35 },
@@ -1352,7 +1352,11 @@ function lookToPalette( l ) {
 		case 'matte': return { ...p, rough: 0.78, clearcoat: 0 };
 		case 'metal': return { ...p, metal: 1, rough: 0.26, clearcoat: 0 };
 		case 'pearl': return { ...p, rough: 0.22, iridescence: 0.9 };
-		case 'glass': return { ...p, transmission: 0.93, rough: 0.04, thickness: 1.2, atten, attenDist: 1.6 };
+		// In the candle-lit hall the table behind a glass die is nearly black, so it would read as
+		// solid: clearer glass with a faint warm inner glow, like amber lit by the flames around it.
+		case 'glass': return params.background === 'medieval'
+			? { ...p, transmission: 0.95, rough: 0.03, thickness: 0.9, atten, attenDist: 3.4, bodyGlow: 0.1 }
+			: { ...p, transmission: 0.93, rough: 0.04, thickness: 1.2, atten, attenDist: 1.6 };
 		case 'gem': return { ...p, transmission: 1, rough: 0.02, thickness: 1.6, atten, attenDist: 3.2, dispersion: 1.1, ior: 1.9, glow: 0.35 };
 		case 'stone': return { ...p, rough: 0.62, clearcoat: 0.12 };
 		case 'polished': return { ...p, rough: 0.2, clearcoat: 0.7 };
@@ -1385,6 +1389,7 @@ function makeDieMaterial( pal, type ) {
 		attenuationColor: new THREE.Color( pal.atten ?? '#ffffff' ), attenuationDistance: pal.attenDist ?? Infinity,
 		dispersion: pal.dispersion ?? 0, iridescence: pal.iridescence ?? 0, iridescenceIOR: 1.35, iridescenceThicknessRange: [ 120, 420 ],
 		specularIntensity: 1,
+		emissive: new THREE.Color( pal.body ), emissiveIntensity: pal.bodyGlow ?? 0,
 	} );
 	const ink = new THREE.Color( pal.ink );
 	const u = {
@@ -1515,15 +1520,15 @@ function buildEnvScene( kind ) {
 		// A soft neutral room (or a dark hall lit by candles), laid out like a photo studio.
 		const walls = new THREE.Mesh( new THREE.SphereGeometry( 30, 48, 24 ), new THREE.ShaderMaterial( {
 			side: THREE.BackSide, depthWrite: false,
-			uniforms: { uTop: { value: new THREE.Color( kind === 'candle' ? 0x120a05 : 0x5a5a5a ) }, uBot: { value: new THREE.Color( kind === 'candle' ? 0x050302 : 0x1c1c1c ) } },
+			uniforms: { uTop: { value: new THREE.Color( kind === 'candle' ? 0x4a3220 : 0x5a5a5a ) }, uBot: { value: new THREE.Color( kind === 'candle' ? 0x140c06 : 0x1c1c1c ) } },
 			vertexShader: 'varying vec3 vP;\nvoid main() { vP = normalize( position ); gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }',
 			fragmentShader: 'uniform vec3 uTop; uniform vec3 uBot; varying vec3 vP;\nvoid main() { gl_FragColor = vec4( mix( uBot, uTop, smoothstep( -0.4, 0.8, vP.y ) ), 1.0 ); }',
 		} ) );
 		s.add( walls );
 		if ( kind === 'candle' ) {
 			// Four warm flames low around the table and a faint glow from the hall above.
-			[ [ -9, 2.2, -7 ], [ 10, 2.6, -5 ], [ 9, 2, 8 ], [ -10, 2.4, 6 ] ].forEach( ( p, k ) => glow( '#ffb066', 38 + k * 6, 0.55, p, [ 1, 1.6, 1 ] ) );
-			glow( '#ffcf99', 4, 2.4, [ 0, 18, 0 ], [ 1, 0.4, 1 ] );
+			[ [ -9, 2.2, -7 ], [ 10, 2.6, -5 ], [ 9, 2, 8 ], [ -10, 2.4, 6 ] ].forEach( ( p, k ) => glow( '#ffb066', 70 + k * 8, 0.75, p, [ 1, 1.6, 1 ] ) );
+			glow( '#ffcf99', 9, 3, [ 0, 18, 0 ], [ 1, 0.4, 1 ] );
 		} else {
 			glow( '#ffffff', 50, 1.45, [ -16, 14.4, 8.2 ] ); glow( '#ffffff', 50, 1.45, [ -16, 18, -8.2 ] );
 			glow( '#ffffff', 17, 2.6, [ 14.9, 12.2, -1.8 ], [ 0.7, 1, 1.4 ] ); glow( '#ffffff', 43, 2.4, [ -0.5, 8.9, 14.5 ], [ 1.25, 1, 0.7 ] );
@@ -1668,7 +1673,7 @@ function buildLights() {
 	} else if ( key === 'medieval' ) {
 		// Only moonlight from a high window plus the four candles (built with the tray).
 		const moon = dirShadow( 0x8f9ad0, 0.6, [ 8, 14, -9 ] ); moon.castShadow = false;
-		scene.add( new THREE.HemisphereLight( 0x6a5240, 0x1a0e06, 0.55 ) );
+		scene.add( new THREE.HemisphereLight( 0x8a6a4c, 0x241408, 0.95 ) );
 	} else {
 		spotShadow( 0xfff0d6, 3.6, [ -2, 23, 6 ] );
 		scene.add( new THREE.HemisphereLight( 0x40203a, 0x080305, 0.35 ) );
@@ -2452,7 +2457,10 @@ function makeDice() {
 	meshes = types.map( ( t, i ) => {
 		const geo = theme.stone ? t.geometry.clone().scale( 0.97 + 0.06 * Math.random(), 0.97 + 0.06 * Math.random(), 0.97 + 0.06 * Math.random() ) : t.geometry;
 		const m = new THREE.Mesh( geo, makeDieMaterial( palettes[ i ], t ) );
-		m.castShadow = true; m.receiveShadow = true; m.visible = false; scene.add( m ); return m;
+		// Candlelight shines through glass: in the hall, glass dice don't block it with a solid black
+		// shadow (the soft contact shadow still grounds them), so the lit table shows through.
+		m.castShadow = ! ( params.background === 'medieval' && ( palettes[ i ].transmission ?? 0 ) >= 0.9 );
+		m.receiveShadow = true; m.visible = false; scene.add( m ); return m;
 	} );
 	aoTextures();
 	blobs = meshes.map( () => {
@@ -3157,7 +3165,9 @@ const shakeBtn = $( '#shakeBtn' );
 const shakeSupported = 'DeviceMotionEvent' in window && navigator.maxTouchPoints > 0 && matchMedia( '(pointer: coarse)' ).matches;
 const shake = { on: false, listening: false, seen: false, g: null, a: { x: 0, y: 0, z: 0 }, mag: 0, at: 0, count: 0, peak: 0, starts: 0, perm: 'not asked', src: '-' };
 const live = { world: null, bodies: null, acc: 0, t: 0, prevV: null, lastHit: null, quietSince: 0, started: 0 };
-const PHONE_TO_WORLD = G / 9.81; // m/s² on the phone to tray units
+// m/s² on the phone to tray units. The tray is a box far bigger than the phone, so a true 1:1
+// conversion barely stirs the dice; this gain makes a strong shake throw them wall to wall.
+const PHONE_TO_WORLD = ( G / 9.81 ) * 3.4;
 function onMotion( e ) {
 	shake.seen = true; shake.count++;
 	let a = e.acceleration;
@@ -3196,12 +3206,20 @@ function stepLive( dt ) {
 	// The box accelerates one way, the dice feel it the other: phone x is screen right, y is screen
 	// up (away across the table), z comes out of the screen (up from the table).
 	const { fwd, right } = camAxes();
-	livePush.set( 0, 0, 0 ).addScaledVector( right, -a.x ).addScaledVector( fwd, -a.y ).add( hTmp.set( 0, -a.z * 0.6, 0 ) ).multiplyScalar( PHONE_TO_WORLD * 1.1 );
-	if ( livePush.length() > 420 ) livePush.setLength( 420 );
+	// A phone held at a reading angle: its long axis (y) points up and away, its face (z) toward you
+	// and up, so shaking along either also jolts the dice vertically, and they tumble.
+	livePush.set( 0, 0, 0 ).addScaledVector( right, -a.x ).addScaledVector( fwd, -0.6 * a.y + 0.5 * a.z );
+	livePush.y = -0.55 * a.y - 0.4 * a.z;
+	livePush.multiplyScalar( PHONE_TO_WORLD );
+	if ( livePush.length() > 1600 ) livePush.setLength( 1600 );
 	const n = types.length, hits = [];
 	live.acc = Math.min( live.acc + dt, DT * 4 );
 	while ( live.acc >= DT ) {
-		for ( const b of live.bodies ) { const v = b.linvel(); b.setLinvel( { x: v.x + livePush.x * DT, y: v.y + livePush.y * DT, z: v.z + livePush.z * DT }, true ); }
+		for ( const b of live.bodies ) {
+			const v = b.linvel(); let x = v.x + livePush.x * DT, y = v.y + livePush.y * DT, z = v.z + livePush.z * DT;
+			const sp = Math.hypot( x, y, z ); if ( sp > 70 ) { x *= 70 / sp; y *= 70 / sp; z *= 70 / sp; }
+			b.setLinvel( { x, y, z }, true );
+		}
 		live.world.step(); live.acc -= DT; live.t += DT;
 		live.bodies.forEach( ( b, i ) => {
 			const v = b.linvel(), pv = live.prevV[ i ];
@@ -3269,12 +3287,22 @@ shakeBtn.addEventListener( 'click', async () => {
 	try { localStorage.setItem( 'dice.shake', shake.on ? '1' : '0' ); } catch ( err ) {}
 	applyShake();
 } );
+// On phones shake mode is on unless the player turned it off. Android streams motion freely;
+// iOS only lets a page ask from inside a tap, so the first tap anywhere asks for it.
+const shakeTip = () => { try { if ( localStorage.getItem( 'dice.shakeTip' ) ) return; localStorage.setItem( 'dice.shakeTip', '1' ); } catch ( err ) {} toast( 'Tip: shake your phone to tumble the dice, then hold still to let them land.' ); };
 if ( shakeSupported ) {
-	try { shake.on = localStorage.getItem( 'dice.shake' ) === '1'; } catch ( err ) {}
+	try { shake.on = localStorage.getItem( 'dice.shake' ) !== '0'; } catch ( err ) { shake.on = true; }
 	if ( shake.on ) {
-		listenMotion();
-		// iOS asks again each visit; the first tap anywhere quietly renews the permission.
-		if ( typeof DeviceMotionEvent.requestPermission === 'function' ) addEventListener( 'touchend', () => { if ( ! shake.seen ) askMotion(); }, { once: true } );
+		if ( typeof DeviceMotionEvent.requestPermission === 'function' ) {
+			let asked = false;
+			const firstTap = async ( e ) => {
+				// A tap on the phone button asks by itself; don't ask twice at once.
+				if ( asked || shake.seen || ( e.target.closest && e.target.closest( '#shakeBtn' ) ) ) return; asked = true;
+				removeEventListener( 'touchend', firstTap, true ); removeEventListener( 'click', firstTap, true );
+				if ( await askMotion() ) { listenMotion(); shakeTip(); } else { shake.on = false; applyShake(); }
+			};
+			addEventListener( 'touchend', firstTap, true ); addEventListener( 'click', firstTap, true );
+		} else { listenMotion(); setTimeout( () => { if ( shake.seen ) shakeTip(); }, 2500 ); }
 	}
 	applyShake();
 }
