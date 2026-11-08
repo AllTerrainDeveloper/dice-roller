@@ -128,6 +128,18 @@ body.ui-hidden #cfgBtn:hover, body.ui-hidden #cfgBtn:focus-visible { opacity: 1;
 .icon-btn .badge { position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: linear-gradient(180deg, var(--accent), var(--accent2)); color: var(--btn-fg); font: 700 10px/18px var(--ui-font); text-align: center; box-shadow: 0 3px 8px rgba(0,0,0,.35); }
 .icon-btn .badge[hidden] { display: none; }
 .icon-btn[hidden] { display: none; }
+/* Critical roll title */
+#crit { position: fixed; inset: 0; display: grid; justify-items: center; align-items: start; padding-top: max( 13vh, 76px ); pointer-events: none; z-index: 6; text-align: center; }
+#crit > div { opacity: 0; }
+#crit b { display: block; font-size: clamp( 38px, 10vw, 104px ); line-height: 1; letter-spacing: .05em; color: #fff3cf; text-shadow: 0 0 16px rgba( 255, 196, 90, .95 ), 0 0 56px rgba( 255, 150, 40, .7 ), 0 4px 0 rgba( 90, 40, 0, .5 ); }
+#crit span { display: block; margin-top: 10px; font: 700 clamp( 13px, 2.6vw, 20px ) / 1 var( --ui-font, system-ui ); letter-spacing: .32em; text-transform: uppercase; color: #ffe7b0; text-shadow: 0 1px 3px rgba( 0, 0, 0, .85 ), 0 0 12px rgba( 255, 170, 60, .8 ); }
+#crit.high > div { animation: critHigh 2.3s cubic-bezier( .2, .9, .2, 1 ) forwards; }
+#crit.low b { color: #ffd6d0; text-shadow: 0 0 16px rgba( 255, 60, 50, .9 ), 0 0 50px rgba( 160, 0, 0, .7 ), 0 4px 0 rgba( 40, 0, 0, .6 ); }
+#crit.low span { color: #ffd2cc; text-shadow: 0 1px 3px rgba( 0, 0, 0, .9 ), 0 0 12px rgba( 255, 60, 50, .8 ); }
+#crit.low > div { animation: critLow 2.3s ease-out forwards; }
+@keyframes critHigh { 0% { opacity: 0; transform: scale( .55 ); } 14% { opacity: 1; transform: scale( 1.1 ); } 24% { transform: scale( 1 ); } 78% { opacity: 1; transform: scale( 1.02 ); } 100% { opacity: 0; transform: scale( 1.08 ); } }
+@keyframes critLow { 0% { opacity: 0; transform: translateY( -26px ); } 14% { opacity: 1; transform: none; } 19% { transform: translateX( -10px ) rotate( -1.5deg ); } 24% { transform: translateX( 9px ) rotate( 1deg ); } 29% { transform: translateX( -5px ); } 34% { transform: none; } 78% { opacity: 1; } 100% { opacity: 0; transform: translateY( 22px ); } }
+@media ( prefers-reduced-motion: reduce ) { #crit.high > div, #crit.low > div { animation-duration: 2.3s; animation-timing-function: linear; } }
 /* While shake mode is on, the phone icon tilts with the motion it receives. */
 #shakeBtn svg { transition: transform .08s linear; }
 #shakeBtn[aria-pressed="true"] svg { transform: rotate( calc( var( --tilt, 0 ) * 22deg ) ); }
@@ -325,6 +337,7 @@ dialog.sheet { width: 100vw; max-height: 94vh; margin: auto 0 0; border-radius: 
 <canvas id="c" tabindex="0" aria-label="3D dice table. Click or press Space to roll, or drag the dice to throw them."></canvas>
 <div class="vignette"></div>
 <div id="tags" aria-hidden="true"></div>
+<div id="crit" aria-live="polite"><div><b></b><span></span></div></div>
 
 <div class="brand">
 	<div class="mark"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="7" cy="7" r="2"/><circle cx="17" cy="7" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg></div>
@@ -414,6 +427,10 @@ dialog.sheet { width: 100vw; max-height: 94vh; margin: auto 0 0; border-radius: 
 				<div class="wcard" id="cfgHideuiCard">
 					<div class="whead"><div><b>Hide all buttons and results</b><span class="wstate" id="cfgHideuiState">Off</span></div><span class="sp"></span><button type="button" class="switch" role="switch" id="cfgHideui" aria-checked="false" aria-label="Hide all buttons and results"></button></div>
 					<p class="note" style="margin: 8px 0 0">Just the table and the dice, for streaming or a display screen. Only this settings button stays, in the top-right corner. Tap the table or press Space to roll.</p>
+				</div>
+				<div class="wcard on" id="cfgCritsCard" style="margin-top: 10px">
+					<div class="whead"><div><b>Dramatic critical rolls</b><span class="wstate" id="cfgCritsState">On</span></div><span class="sp"></span><button type="button" class="switch" role="switch" id="cfgCrits" aria-checked="true" aria-label="Dramatic critical rolls"></button></div>
+					<p class="note" style="margin: 8px 0 0">When a d20 is about to land on 20 or 1 (a d100 on 100 or 1), time slows for its last wobbles, the camera swoops in beside it and a heartbeat plays. Then the reveal: sparks and a cheer, or a groan.</p>
 				</div>
 			</section>
 			<section aria-labelledby="cfgQH">
@@ -578,6 +595,8 @@ const params = ( () => {
 	if ( ! background ) { warnings.push( `Unknown background "${ bgRaw }". Use felt, wood, marble, cosmos, neon, velvet, crystal, stone or medieval.` ); background = 'felt'; }
 	const on = ( v ) => /^(1|true|on|yes)$/i.test( String( v ?? '' ).trim() );
 	const reroll = on( get( 'reroll', 'tap' ) ), lock = reroll && on( get( 'lock' ) ), hideui = on( get( 'hideui', 'clean', 'kiosk' ) );
+	// Dramatic critical rolls are on unless crits=0.
+	const crits = ! /^(0|false|off|no)$/i.test( String( get( 'crits', 'crit', 'suspense' ) ?? '' ).trim() );
 	// look=[c1121f-ffffff-glass,0,…]: per-die body colour, number colour (hex, gold, silver or auto) and finish.
 	const look = dice.map( () => null );
 	const lookRaw = get( 'look', 'style', 'colors' );
@@ -590,7 +609,7 @@ const params = ( () => {
 			look[ i ] = { body: '#' + b.toLowerCase(), ink: hex( k ) ? '#' + k.toLowerCase() : k === 'gold' || k === 'silver' ? k : null, finish: FINISHES.includes( f ) ? f : 'gloss' };
 		} );
 	}
-	return { dice, weights, reverse, background, reroll, lock, hideui, look, warnings };
+	return { dice, weights, reverse, background, reroll, lock, hideui, crits, look, warnings };
 } )();
 
 /* ------------------------------------------------------------------ *
@@ -2538,6 +2557,8 @@ function playRoll( r, speed = 1 ) {
 	}
 	hideResults();
 	planCamera( r );
+	if ( r.crit === undefined ) r.crit = planSuspense( r );
+	if ( r.crit ) { r.crit.revealed = false; r.crit.nextBeat = 0; }
 	anim.roll = r; anim.speed = speed; anim.nextEvent = 0;
 	if ( meshes[ 0 ].visible ) {
 		meshes.forEach( ( m ) => m.scale.setScalar( 1 ) );
@@ -2714,7 +2735,7 @@ function cfgFromParams() {
 	return {
 		dice: params.dice.slice(), reverse: params.reverse.slice(),
 		weights: Object.fromEntries( Object.entries( params.weights ).map( ( [ k, v ] ) => [ k, v.slice() ] ) ),
-		loaded: new Set( Object.keys( params.weights ).map( Number ) ), background: params.background, reroll: params.reroll, lock: params.lock, hideui: params.hideui,
+		loaded: new Set( Object.keys( params.weights ).map( Number ) ), background: params.background, reroll: params.reroll, lock: params.lock, hideui: params.hideui, crits: params.crits,
 		look: params.look.map( ( l ) => ( l ? { ...l } : null ) ),
 	};
 }
@@ -2733,6 +2754,7 @@ function cfgQuery() {
 	if ( cfg.reroll ) parts.push( 'reroll=1' );
 	if ( cfg.reroll && cfg.lock ) parts.push( 'lock=1' );
 	if ( cfg.hideui ) parts.push( 'hideui=1' );
+	if ( ! cfg.crits ) parts.push( 'crits=0' );
 	const lk = cfg.look.slice( 0, d.length ).map( ( l ) => ( l ? `${ l.body.slice( 1 ) }-${ l.ink ? ( l.ink[ 0 ] === '#' ? l.ink.slice( 1 ) : l.ink ) : 'auto' }-${ l.finish }` : '0' ) );
 	while ( lk.length && lk[ lk.length - 1 ] === '0' ) lk.pop();
 	if ( lk.length ) parts.push( `look=[${ lk.join( ',' ) }]` );
@@ -2844,7 +2866,7 @@ function cfgRenderThemes() {
 }
 function cfgRenderInteract() {
 	const set = ( id, v ) => { $( '#cfg' + id ).setAttribute( 'aria-checked', String( v ) ); $( '#cfg' + id + 'State' ).textContent = v ? 'On' : 'Off'; $( '#cfg' + id + 'Card' ).classList.toggle( 'on', v ); };
-	set( 'Reroll', cfg.reroll ); set( 'Lock', cfg.reroll && cfg.lock ); set( 'Hideui', !! cfg.hideui );
+	set( 'Reroll', cfg.reroll ); set( 'Lock', cfg.reroll && cfg.lock ); set( 'Hideui', !! cfg.hideui ); set( 'Crits', cfg.crits !== false );
 	$( '#cfgLock' ).disabled = ! cfg.reroll; $( '#cfgLockCard' ).style.opacity = cfg.reroll ? '' : '0.45';
 }
 function cfgRenderHq() { $( '#cfgHq' ).setAttribute( 'aria-checked', String( cfg.hq ) ); $( '#cfgHqState' ).textContent = cfg.hq ? 'On' : 'Off'; $( '#cfgHqCard' ).classList.toggle( 'on', cfg.hq ); }
@@ -2878,11 +2900,12 @@ function openConfig() {
 	$( '#spClose' ).addEventListener( 'click', closeStyle );
 	$( '#spDone' ).addEventListener( 'click', closeStyle );
 	$( '#spReset' ).addEventListener( 'click', () => { cfg.look[ spIndex ] = null; renderStyle(); cfgRenderTray(); cfgRenderUrl(); } );
-	$( '#cfgReset' ).addEventListener( 'click', () => { cfg = { dice: [ 6 ], reverse: [ null ], weights: {}, loaded: new Set(), background: 'felt', hq: cfg.hq, reroll: false, lock: false, hideui: false, look: [ null ] }; cfgRenderTray(); cfgRenderWeights(); cfgRenderThemes(); cfgRenderInteract(); cfgRenderUrl(); } );
+	$( '#cfgReset' ).addEventListener( 'click', () => { cfg = { dice: [ 6 ], reverse: [ null ], weights: {}, loaded: new Set(), background: 'felt', hq: cfg.hq, reroll: false, lock: false, hideui: false, crits: true, look: [ null ] }; cfgRenderTray(); cfgRenderWeights(); cfgRenderThemes(); cfgRenderInteract(); cfgRenderUrl(); } );
 	$( '#cfgHq' ).addEventListener( 'click', () => { cfg.hq = ! cfg.hq; cfgRenderHq(); } );
 	$( '#cfgReroll' ).addEventListener( 'click', () => { cfg.reroll = ! cfg.reroll; if ( ! cfg.reroll ) cfg.lock = false; cfgRenderInteract(); cfgRenderUrl(); } );
 	$( '#cfgLock' ).addEventListener( 'click', () => { if ( ! cfg.reroll ) return; cfg.lock = ! cfg.lock; cfgRenderInteract(); cfgRenderUrl(); } );
 	$( '#cfgHideui' ).addEventListener( 'click', () => { cfg.hideui = ! cfg.hideui; cfgRenderInteract(); cfgRenderUrl(); } );
+	$( '#cfgCrits' ).addEventListener( 'click', () => { cfg.crits = cfg.crits === false; cfgRenderInteract(); cfgRenderUrl(); } );
 	$( '#cfgApply' ).addEventListener( 'click', () => {
 		const q = cfgQuery(), hqChanged = cfg.hq !== HQ, same = q === location.search || ( ! q && ! location.search );
 		if ( hqChanged ) { try { localStorage.setItem( 'dice.hq', cfg.hq ? '1' : '0' ); } catch ( e ) {} }
@@ -2895,6 +2918,206 @@ function openConfig() {
 		setTimeout( () => ( btn.textContent = 'Copy link' ), 1600 );
 	} );
 }
+/* ------------------------------------------------------------------ *
+ * Suspense for critical rolls. Every roll is simulated before it is shown, so we know when a
+ * d20 is about to land on 20 (or 1) and can stage it: its last wobbles in slow motion, the camera
+ * low beside it, a heartbeat, then the reveal.
+ * ------------------------------------------------------------------ */
+const CRIT_DICE = { 20: 'NATURAL 20', 100: 'A PERFECT 100' };
+function planSuspense( r ) {
+	if ( ! params.crits ) return null;
+	let pick = -1, kind = null;
+	types.forEach( ( t, i ) => {
+		if ( ! CRIT_DICE[ t.N ] ) return;
+		const v = r.results[ i ], k = v === t.N ? 'high' : v === 1 ? 'low' : null;
+		if ( ! k ) return;
+		// A die that never moved (re-rolling another one) has nothing to reveal.
+		const F = r.frames, o = i * 7, A = F[ 0 ], B = F[ F.length - 1 ];
+		const still = Math.hypot( A[ o ] - B[ o ], A[ o + 1 ] - B[ o + 1 ], A[ o + 2 ] - B[ o + 2 ] ) < 0.05 && Math.abs( A[ o + 3 ] * B[ o + 3 ] + A[ o + 4 ] * B[ o + 4 ] + A[ o + 5 ] * B[ o + 5 ] + A[ o + 6 ] * B[ o + 6 ] ) > 0.9995;
+		if ( still ) return;
+		if ( pick < 0 || ( k === 'high' && kind === 'low' ) ) { pick = i; kind = k; }
+	} );
+	if ( pick < 0 ) return null;
+	// When the die's top face last changes (its final tumble) and when it comes to rest.
+	const t = types[ pick ], F = r.frames, o = pick * 7, q = new THREE.Quaternion();
+	const faceAt = ( f ) => readFace( t, q.set( F[ f ][ o + 3 ], F[ f ][ o + 4 ], F[ f ][ o + 5 ], F[ f ][ o + 6 ] ) );
+	const fin = faceAt( F.length - 1 );
+	let lastChange = 0, rest = F.length - 1;
+	for ( let f = F.length - 1; f >= 0; f -= 2 ) if ( faceAt( f ) !== fin ) { lastChange = f; break; }
+	for ( let f = F.length - 1; f > 0; f-- ) {
+		const A = F[ f - 1 ], B = F[ f ], d = Math.abs( A[ o + 3 ] * B[ o + 3 ] + A[ o + 4 ] * B[ o + 4 ] + A[ o + 5 ] * B[ o + 5 ] + A[ o + 6 ] * B[ o + 6 ] );
+		if ( Math.hypot( B[ o ] - A[ o ], B[ o + 1 ] - A[ o + 1 ], B[ o + 2 ] - A[ o + 2 ] ) > 0.004 || 1 - d > 2e-6 ) { rest = f; break; }
+	}
+	const tc = lastChange * DT, tr = rest * DT;
+	let s0 = Math.max( 0.3, tc - 0.5 ); const s1 = Math.max( tr, tc + 0.15, s0 + 0.4 );
+	if ( s1 - s0 > 2.2 ) s0 = s1 - 2.2;
+	return { die: pick, kind, s0, s1, revealed: false, nextBeat: 0, revealAt: 0 };
+}
+// Playback speed during the suspense: eases down to a quarter, back to normal after the reveal.
+function critWarp( r, t ) {
+	const c = r.crit;
+	if ( ! c || c.revealed || t < c.s0 ) return 1;
+	const k = clamp( ( t - c.s0 ) / 0.3, 0, 1 );
+	return 1 - 0.76 * k * k * ( 3 - 2 * k );
+}
+function critTick( r, now ) {
+	const c = r.crit;
+	if ( ! c || c.revealed || anim.t < c.s0 ) return;
+	if ( anim.t >= c.s1 ) { c.revealed = true; c.revealAt = now; critReveal( r ); return; }
+	if ( now >= c.nextBeat ) { heartbeat(); c.nextBeat = now + 0.72; }
+}
+// The camera's swoop: a weight eased by a damped spring, so it always eases in and out.
+const critCam = { w: 0, vel: { v: 0 }, die: -1, orbit: 0, angle: null, lift: 0, restore: false, pos: V3(), quat: new THREE.Quaternion() };
+const ccDir = V3(), ccPos = V3(), ccLook = V3();
+function critCamTarget( now ) {
+	const r = anim.roll, c = r && r.crit;
+	if ( ! c || ( anim.phase !== 'play' && anim.phase !== 'done' ) ) return 0;
+	if ( ! c.revealed ) return anim.t >= c.s0 - 0.12 ? 1 : 0;
+	return now - c.revealAt < 1.7 ? 1 : 0;
+}
+function applyCritCam( dt, now ) {
+	const target = critCamTarget( now );
+	if ( target > 0 ) { critCam.die = anim.roll.crit.die; if ( critCam.roll !== anim.roll ) { critCam.roll = anim.roll; critCam.angle = null; critCam.orbit = 0; } }
+	critCam.w = clamp( smoothDamp( critCam.w, target, critCam.vel, target ? 0.42 : 0.6, dt ), 0, 1 );
+	if ( critCam.w < 0.001 || critCam.die < 0 || ! meshes[ critCam.die ] ) { critCam.orbit = 0; critCam.angle = null; return; }
+	critCam.orbit += dt * 0.18;
+	critCam.pos.copy( camera.position ); critCam.quat.copy( camera.quaternion ); critCam.restore = true;
+	const m = meshes[ critCam.die ], R = types[ critCam.die ].circumR, p = m.position;
+	const d = Math.max( 4.6, R * 6.5 ), el = 0.42, dh = d * Math.cos( el );
+	if ( critCam.angle == null ) Object.assign( critCam, critViewAngle( p, R, dh, d * Math.sin( el ) ) );
+	// The best clear viewpoint, slowly orbiting while the die settles.
+	const a = critCam.angle + critCam.orbit;
+	ccPos.set( p.x + Math.cos( a ) * dh, p.y + d * Math.sin( el ) + critCam.lift, p.z + Math.sin( a ) * dh );
+	const e = critCam.w * critCam.w * ( 3 - 2 * critCam.w );
+	camera.position.lerp( ccPos, e );
+	ccLook.copy( controls.target ).lerp( V3( p.x, p.y + R * 0.15, p.z ), e );
+	camera.lookAt( ccLook );
+}
+// Looks around the die for a viewpoint with a clear line of sight (no other die in the way),
+// inside the tray (no rail in the face), close to the player's own point of view.
+function critViewAngle( p, R, dh, h ) {
+	const base = Math.atan2( critCam.pos.z - p.z, critCam.pos.x - p.x ), eye = V3(), seg = V3(), tmp = V3();
+	let best = { angle: base, lift: 0 }, bestScore = Infinity;
+	for ( let k = 0; k < 24; k++ ) {
+		const off = ( k % 2 ? 1 : -1 ) * Math.ceil( k / 2 ) * ( Math.PI / 12 ), a = base + off;
+		eye.set( p.x + Math.cos( a ) * dh, p.y + h, p.z + Math.sin( a ) * dh );
+		let score = Math.abs( off ) * 0.6;
+		// Beyond the rail, rise just enough to look over it onto the whole die (preferring not to).
+		const cx = Math.cos( a ), cz = Math.sin( a );
+		const exit = Math.min( cx ? ( Math.sign( cx ) * arena.hx - p.x ) / cx : Infinity, cz ? ( Math.sign( cz ) * arena.hz - p.z ) / cz : Infinity );
+		let lift = 0;
+		if ( exit < dh ) {
+			const base = p.y - R * 0.45, over = 0.8 + 0.25, need = base + ( over - base ) * dh / Math.max( exit, 0.3 );
+			lift = Math.max( 0, need - eye.y ); eye.y += lift; score += lift * 0.5;
+		}
+		// Other dice between the eye and the die.
+		seg.subVectors( p, eye ); const L = seg.length(); seg.divideScalar( L );
+		meshes.forEach( ( o, j ) => {
+			if ( j === critCam.die || ! o.visible ) return;
+			const s = clamp( tmp.subVectors( o.position, eye ).dot( seg ), 0, L ), dist = tmp.copy( eye ).addScaledVector( seg, s ).distanceTo( o.position );
+			const clear = types[ j ].circumR + R * 0.35;
+			if ( dist < clear ) score += 4 * ( 1 - dist / clear ) + 2;
+		} );
+		if ( score < bestScore ) { bestScore = score; best = { angle: a, lift }; }
+	}
+	return best;
+}
+function restoreCritCam() { if ( critCam.restore ) { camera.position.copy( critCam.pos ); camera.quaternion.copy( critCam.quat ); critCam.restore = false; } }
+
+// Reveal effects: a golden flare and a fountain of sparks, or a red shockwave on the table.
+const critFx = [];
+function critReveal( r ) {
+	const c = r.crit, i = c.die, t = types[ i ], m = meshes[ i ], R = t.circumR, p = m.position.clone();
+	const el = $( '#crit' ), title = c.kind === 'high' ? CRIT_DICE[ t.N ] : 'NATURAL 1';
+	el.querySelector( 'b' ).textContent = title; el.querySelector( 'b' ).style.font = fontStr( 96 ).replace( '96px', 'clamp( 38px, 10vw, 104px )' );
+	el.querySelector( 'span' ).textContent = c.kind === 'high' ? 'Critical hit' : 'Critical miss';
+	el.className = ''; void el.offsetWidth; el.className = c.kind;
+	if ( c.kind === 'high' ) {
+		cheer();
+		const flare = new THREE.Sprite( new THREE.SpriteMaterial( { map: glowTex(), color: 0xffd27a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false } ) );
+		flare.position.copy( p ); flare.position.y += R * 0.3; scene.add( flare );
+		critFx.push( { obj: flare, dur: 0.9, step: ( k ) => { flare.scale.setScalar( R * ( 1 + 3.2 * Math.sqrt( k ) ) ); flare.material.opacity = 0.9 * ( 1 - k ) * ( 1 - k ); } } );
+		const N = 110, pos = new Float32Array( N * 3 ), vel = [];
+		for ( let k = 0; k < N; k++ ) {
+			pos.set( [ p.x, p.y + R * 0.4, p.z ], k * 3 );
+			const a = Math.random() * Math.PI * 2, up = 0.35 + Math.random() * 0.65, sp = 5 + Math.random() * 11;
+			vel.push( V3( Math.cos( a ) * Math.sqrt( 1 - up * up ) * sp, up * sp * 1.4, Math.sin( a ) * Math.sqrt( 1 - up * up ) * sp ) );
+		}
+		const g = new THREE.BufferGeometry(); g.setAttribute( 'position', new THREE.BufferAttribute( pos, 3 ) );
+		const pts = new THREE.Points( g, new THREE.PointsMaterial( { map: glowTex(), color: 0xffc860, size: 0.55, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false } ) );
+		pts.frustumCulled = false; scene.add( pts );
+		let last = 0;
+		critFx.push( { obj: pts, dur: 1.9, step: ( k, dtx ) => {
+			for ( let j = 0; j < N; j++ ) {
+				vel[ j ].y -= 22 * dtx; vel[ j ].multiplyScalar( 1 - 0.9 * dtx );
+				pos[ j * 3 ] += vel[ j ].x * dtx; pos[ j * 3 + 1 ] = Math.max( 0.05, pos[ j * 3 + 1 ] + vel[ j ].y * dtx ); pos[ j * 3 + 2 ] += vel[ j ].z * dtx;
+			}
+			g.attributes.position.needsUpdate = true; pts.material.opacity = 1 - k * k; pts.material.size = 0.55 * ( 1 - 0.5 * k );
+		} } );
+	} else {
+		groan();
+		for ( let w = 0; w < 2; w++ ) {
+			const ring = new THREE.Mesh( new THREE.RingGeometry( 0.86, 1, 96 ), new THREE.MeshBasicMaterial( { color: 0xff3a2a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false } ) );
+			ring.rotation.x = -Math.PI / 2; ring.position.set( p.x, ( theme.stone ? stoneSample( p.x, p.z ).h : 0 ) + 0.03, p.z ); ring.scale.setScalar( 0.001 ); scene.add( ring );
+			critFx.push( { obj: ring, delay: w * 0.22, dur: 1.2, step: ( k ) => { ring.scale.setScalar( R * ( 0.8 + 6 * Math.sqrt( k ) ) ); ring.material.opacity = 0.9 * ( 1 - k ); } } );
+		}
+	}
+}
+function updateCritFx( dt ) {
+	for ( let k = critFx.length - 1; k >= 0; k-- ) {
+		const f = critFx[ k ];
+		if ( f.delay > 0 ) { f.delay -= dt; continue; }
+		f.t = ( f.t || 0 ) + dt; const u = Math.min( 1, f.t / f.dur );
+		f.step( u, dt );
+		if ( u >= 1 ) { scene.remove( f.obj ); f.obj.geometry.dispose(); f.obj.material.dispose(); critFx.splice( k, 1 ); }
+	}
+}
+
+// Sounds of suspense, synthesized: a heartbeat, a crowd roar with whistles, a groan.
+function tone( type, f0, f1, t, dur, peak, dest = master ) {
+	const o = actx.createOscillator(), g = actx.createGain(); o.type = type;
+	o.frequency.setValueAtTime( f0, t ); if ( f1 !== f0 ) o.frequency.exponentialRampToValueAtTime( f1, t + dur );
+	g.gain.setValueAtTime( 0.0001, t ); g.gain.exponentialRampToValueAtTime( peak, t + Math.min( 0.03, dur * 0.2 ) ); g.gain.exponentialRampToValueAtTime( 0.0001, t + dur );
+	o.connect( g ).connect( dest ); o.start( t ); o.stop( t + dur + 0.05 ); return o;
+}
+function noiseBand( t, dur, f, q, peak, attack = 0.2, fEnd = f ) {
+	const src = actx.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+	const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.setValueAtTime( f, t ); if ( fEnd !== f ) bp.frequency.exponentialRampToValueAtTime( fEnd, t + dur ); bp.Q.value = q;
+	const g = actx.createGain(); g.gain.setValueAtTime( 0.0001, t ); g.gain.exponentialRampToValueAtTime( peak, t + attack ); g.gain.setValueAtTime( peak, t + dur * 0.45 ); g.gain.exponentialRampToValueAtTime( 0.0001, t + dur );
+	src.connect( bp ).connect( g ).connect( master ); src.start( t, Math.random() ); src.stop( t + dur + 0.05 ); return g;
+}
+const soundOn = () => actx && ! muted && actx.state === 'running';
+function heartbeat() {
+	if ( ! soundOn() ) return;
+	const t = actx.currentTime, lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 160; lp.connect( master );
+	tone( 'sine', 62, 40, t, 0.2, 0.9, lp ); tone( 'sine', 56, 38, t + 0.17, 0.24, 0.65, lp );
+}
+function cheer() {
+	if ( ! soundOn() ) return;
+	const t = actx.currentTime;
+	// A crowd: several voices of filtered noise, each wobbling at its own rate.
+	for ( let k = 0; k < 6; k++ ) {
+		const g = noiseBand( t + k * 0.03, 2.6, 480 + k * 380, 1.1, 0.16, 0.22 );
+		const lfo = actx.createOscillator(), dep = actx.createGain(); lfo.frequency.value = 4 + Math.random() * 6; dep.gain.value = 0.05;
+		lfo.connect( dep ).connect( g.gain ); lfo.start( t ); lfo.stop( t + 2.7 );
+	}
+	// Whistles, and a bright fanfare.
+	tone( 'sine', 1700, 2700, t + 0.25, 0.45, 0.07 ); tone( 'sine', 2600, 1900, t + 0.75, 0.4, 0.05 );
+	[ 523.25, 659.25, 783.99, 1046.5 ].forEach( ( f, k ) => { tone( 'triangle', f, f, t + k * 0.085, 0.9, 0.16 ); tone( 'sine', f * 2, f * 2, t + k * 0.085, 0.5, 0.04 ); } );
+}
+function groan() {
+	if ( ! soundOn() ) return;
+	const t = actx.currentTime;
+	noiseBand( t, 1.9, 420, 2.4, 0.22, 0.3, 230 ); noiseBand( t + 0.05, 1.7, 820, 3, 0.08, 0.3, 470 );
+	// Wah, wah, wah, waaah.
+	const lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 6; lp.connect( master );
+	[ [ 196, 0.36 ], [ 185, 0.36 ], [ 174.6, 0.36 ], [ 164.8, 1.1 ] ].reduce( ( at, [ f, d ] ) => {
+		const o = tone( 'sawtooth', f, f * ( d > 1 ? 0.97 : 1 ), t + 0.35 + at, d, 0.13, lp );
+		if ( d > 1 ) { const v = actx.createOscillator(), vg = actx.createGain(); v.frequency.value = 6; vg.gain.value = 5; v.connect( vg ).connect( o.frequency ); v.start( t + 0.35 + at ); v.stop( t + 0.35 + at + d ); }
+		return at + d * 0.92;
+	}, 0 );
+}
+
 const clock = new THREE.Clock();
 const camRight = new THREE.Vector3();
 const tmpV = new THREE.Vector3();
@@ -2910,11 +3133,13 @@ function tick() {
 		if ( e >= 1 ) { anim.phase = 'play'; anim.t = 0; }
 	} else if ( anim.phase === 'play' ) {
 		const r = anim.roll;
-		anim.t += dt * anim.speed;
+		const warp = critWarp( r, anim.t );
+		anim.t += dt * anim.speed * warp;
 		applyFrame( r, anim.t );
+		critTick( r, now );
 		if ( anim.scaleIn ) { const s = easeOutBack( clamp( anim.t / 0.22, 0, 1 ) ); meshes.forEach( ( m ) => m.scale.setScalar( Math.max( 0.001, s ) ) ); if ( anim.t > 0.22 ) anim.scaleIn = false; }
 		let played = 0;
-		while ( anim.nextEvent < r.events.length && r.events[ anim.nextEvent ].t <= anim.t ) { const ev = r.events[ anim.nextEvent++ ]; if ( played++ < 6 ) playHit( ev.kind, ev.s, anim.speed ); }
+		while ( anim.nextEvent < r.events.length && r.events[ anim.nextEvent ].t <= anim.t ) { const ev = r.events[ anim.nextEvent++ ]; if ( played++ < 6 ) playHit( ev.kind, ev.s, anim.speed * warp ); }
 		if ( anim.t >= r.duration ) { anim.phase = 'done'; applyFrame( r, r.duration ); meshes.forEach( ( m ) => m.scale.setScalar( 1 ) ); showResults( r ); }
 	} else if ( anim.phase === 'held' ) updateHand( dt, now );
 	else if ( anim.phase === 'live' ) stepLive( dt );
@@ -2954,7 +3179,9 @@ function tick() {
 	}
 	for ( const f of flickers ) f.l.intensity = f.base * ( 0.86 + 0.1 * Math.sin( now * 7.3 + f.seed ) + 0.06 * Math.sin( now * 17.1 + f.seed * 2 ) + 0.04 * Math.sin( now * 31 + f.seed ) );
 	controls.update();
-	scenePass.accumulate = HQ && ssStill();
+	updateCritFx( dt );
+	applyCritCam( dt, now );
+	scenePass.accumulate = HQ && ssStill() && critCam.w < 0.001 && critFx.length === 0;
 	scenePass.live = candles.length > 0 || flickers.length > 0 || !! theme.caustics;
 	composer.render();
 	if ( anim.phase === 'done' && types.length > 1 ) {
@@ -2964,6 +3191,7 @@ function tick() {
 			tagEls[ i ].style.transform = `translate(${ ( tmpV.x * 0.5 + 0.5 ) * w }px, ${ ( -tmpV.y * 0.5 + 0.5 ) * h }px) translate(-50%, -100%)`;
 		} );
 	}
+	restoreCritCam();
 	requestAnimationFrame( tick );
 }
 
@@ -3413,7 +3641,7 @@ document.querySelector( 'meta[name="theme-color"]' ).setAttribute( 'content', th
 /* ------------------------------------------------------------------ *
  * Boot
  * ------------------------------------------------------------------ */
-window.__dice = { params, results: null, get types() { return types; }, get scene() { return scene; }, get camera() { return camera; }, get controls() { return controls; }, get renderer() { return renderer; }, get composer() { return composer; }, get scenePass() { return scenePass; }, get anim() { return anim; }, shake: () => shake, onMotion: ( e ) => onMotion( e ), startLive: () => startLive(), stepLive: ( dt ) => stepLive( dt ), get history() { return rollHistory; }, planNudge: ( i ) => planNudge( i ), planRoll: () => planRoll(), sim: ( seed ) => simulate( seed ) };
+window.__dice = { params, results: null, get types() { return types; }, get scene() { return scene; }, get camera() { return camera; }, get controls() { return controls; }, get renderer() { return renderer; }, get composer() { return composer; }, get scenePass() { return scenePass; }, get anim() { return anim; }, shake: () => shake, onMotion: ( e ) => onMotion( e ), startLive: () => startLive(), stepLive: ( dt ) => stepLive( dt ), get history() { return rollHistory; }, critCam: () => critCam, planSuspense: ( r ) => planSuspense( r ), planNudge: ( i ) => planNudge( i ), planRoll: () => planRoll(), sim: ( seed ) => simulate( seed ) };
 ( async () => {
 	try {
 		const fontReady = Promise.race( [ document.fonts.load( fontStr( 100 ) ).then( () => document.fonts.ready ), new Promise( ( r ) => setTimeout( r, 3000 ) ) ] );
