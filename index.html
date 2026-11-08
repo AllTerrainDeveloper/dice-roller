@@ -3163,7 +3163,7 @@ addEventListener( 'pointercancel', ( e ) => letGo( e, true ), true );
  */
 const shakeBtn = $( '#shakeBtn' );
 const shakeSupported = 'DeviceMotionEvent' in window && navigator.maxTouchPoints > 0 && matchMedia( '(pointer: coarse)' ).matches;
-const shake = { on: false, listening: false, seen: false, g: null, a: { x: 0, y: 0, z: 0 }, mag: 0, at: 0, count: 0, peak: 0, starts: 0, perm: 'not asked', src: '-' };
+const shake = { on: false, listening: false, seen: false, g: null, gv: null, up: null, w: null, a: { x: 0, y: 0, z: 0 }, mag: 0, at: 0, count: 0, peak: 0, starts: 0, perm: 'not asked', src: '-' };
 const live = { world: null, bodies: null, acc: 0, t: 0, prevV: null, lastHit: null, quietSince: 0, started: 0 };
 // m/s² on the phone to tray units. The tray is a box far bigger than the phone, so a true 1:1
 // conversion barely stirs the dice; this gain makes a strong shake throw them wall to wall.
@@ -3180,8 +3180,29 @@ function onMotion( e ) {
 		a = { x: ag.x - shake.g.x, y: ag.y - shake.g.y, z: ag.z - shake.g.z };
 	}
 	shake.a = { x: a.x || 0, y: a.y || 0, z: a.z || 0 }; shake.mag = Math.hypot( shake.a.x, shake.a.y, shake.a.z ); shake.at = performance.now(); shake.peak = Math.max( shake.peak * 0.995, shake.mag );
+	orientShake( e.accelerationIncludingGravity );
 	if ( shake.on ) { shakeBtn.style.setProperty( '--tilt', clamp( shake.a.x / 12, -1, 1 ).toFixed( 2 ) ); shakeBtn.style.setProperty( '--lvl', clamp( shake.mag / 18, 0, 1 ).toFixed( 2 ) ); }
 	if ( shake.on && anim.phase !== 'live' && shake.mag > 9 && ! $( '#config' ).open ) startLive();
+}
+// Which way is really up for the phone right now? Gravity tells us (raw reading minus the
+// gravity-free one). Each shake is then split into true up/down, left/right and away/toward,
+// so tossing the phone upward throws the dice skyward however it is held: flat like a tray,
+// upright, or anywhere between.
+function orientShake( ag ) {
+	if ( ! ag || ag.x == null ) { shake.w = null; return; }
+	const a = shake.a, gx = ag.x - a.x, gy = ag.y - a.y, gz = ag.z - a.z;
+	if ( ! shake.gv ) shake.gv = { x: gx, y: gy, z: gz };
+	else { shake.gv.x += ( gx - shake.gv.x ) * 0.15; shake.gv.y += ( gy - shake.gv.y ) * 0.15; shake.gv.z += ( gz - shake.gv.z ) * 0.15; }
+	const L = Math.hypot( shake.gv.x, shake.gv.y, shake.gv.z ); if ( L < 3 ) { shake.w = null; return; }
+	// Platforms disagree on the sign; a phone in use has its top or its screen facing up.
+	let u = { x: shake.gv.x / L, y: shake.gv.y / L, z: shake.gv.z / L };
+	if ( u.y + u.z < 0 ) u = { x: -u.x, y: -u.y, z: -u.z };
+	const dot = ( p, q ) => p.x * q.x + p.y * q.y + p.z * q.z, norm = ( p ) => { const l = Math.hypot( p.x, p.y, p.z ) || 1; return { x: p.x / l, y: p.y / l, z: p.z / l }; };
+	const up = dot( a, u ), h = { x: a.x - up * u.x, y: a.y - up * u.y, z: a.z - up * u.z };
+	// Screen-right, and "away from you": the phone's top when flat, into the screen when upright.
+	const right = norm( { x: 1 - u.x * u.x, y: -u.x * u.y, z: -u.x * u.z } );
+	const away = norm( { x: -u.y * u.x + u.z * u.x, y: 1 - u.y * u.y + u.z * u.y, z: -u.y * u.z - 1 + u.z * u.z } );
+	shake.up = u; shake.w = { r: dot( h, right ), f: dot( h, away ), u: up };
 }
 function startLive() {
 	if ( ! RAPIER || ! types.length || ! meshes[ 0 ].visible || anim.phase === 'gather' || anim.phase === 'held' ) return false;
@@ -3206,12 +3227,18 @@ function stepLive( dt ) {
 	// The box accelerates one way, the dice feel it the other: phone x is screen right, y is screen
 	// up (away across the table), z comes out of the screen (up from the table).
 	const { fwd, right } = camAxes();
-	// A phone held at a reading angle: its long axis (y) points up and away, its face (z) toward you
-	// and up, so shaking along either also jolts the dice vertically, and they tumble.
-	livePush.set( 0, 0, 0 ).addScaledVector( right, -a.x ).addScaledVector( fwd, -0.6 * a.y + 0.5 * a.z );
-	livePush.y = -0.55 * a.y - 0.4 * a.z;
+	const w = fresh ? shake.w : null;
+	if ( w ) {
+		// The phone's true motion, mapped onto the table; vertical jolts get a little extra punch.
+		livePush.set( 0, 0, 0 ).addScaledVector( right, -w.r ).addScaledVector( fwd, -w.f );
+		livePush.y = -1.5 * w.u;
+	} else {
+		// No gravity reading: assume a phone held at a reading angle.
+		livePush.set( 0, 0, 0 ).addScaledVector( right, -a.x ).addScaledVector( fwd, -0.6 * a.y + 0.5 * a.z );
+		livePush.y = -0.55 * a.y - 0.4 * a.z;
+	}
 	livePush.multiplyScalar( PHONE_TO_WORLD );
-	if ( livePush.length() > 1600 ) livePush.setLength( 1600 );
+	if ( livePush.length() > 2200 ) livePush.setLength( 2200 );
 	const n = types.length, hits = [];
 	live.acc = Math.min( live.acc + dt, DT * 4 );
 	while ( live.acc >= DT ) {
@@ -3331,6 +3358,8 @@ if ( new URLSearchParams( location.search ).has( 'debug' ) ) {
 			`listening        ${ shake.listening }`,
 			`readings         ${ shake.count } (${ rate }/s)  src ${ shake.src }`,
 			`accel m/s²       x${ f( shake.a.x ) } y${ f( shake.a.y ) } z${ f( shake.a.z ) }`,
+			`up (phone axes)  ${ shake.up ? `x${ f( shake.up.x ) } y${ f( shake.up.y ) } z${ f( shake.up.z ) }` : 'unknown' }`,
+			`world accel      ${ shake.w ? `right${ f( shake.w.r ) } away${ f( shake.w.f ) } up${ f( shake.w.u ) }` : '-' }`,
 			`strength         ${ shake.mag.toFixed( 1 ) }  peak ${ shake.peak.toFixed( 1 ) }  (start > 9)`,
 			`phase            ${ anim.phase }   live starts ${ shake.starts }`,
 		].join( '\n' );
