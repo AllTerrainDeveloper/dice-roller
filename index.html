@@ -128,6 +128,10 @@ body.ui-hidden #cfgBtn:hover, body.ui-hidden #cfgBtn:focus-visible { opacity: 1;
 .icon-btn .badge { position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: linear-gradient(180deg, var(--accent), var(--accent2)); color: var(--btn-fg); font: 700 10px/18px var(--ui-font); text-align: center; box-shadow: 0 3px 8px rgba(0,0,0,.35); }
 .icon-btn .badge[hidden] { display: none; }
 .icon-btn[hidden] { display: none; }
+/* While shake mode is on, the phone icon tilts with the motion it receives. */
+#shakeBtn svg { transition: transform .08s linear; }
+#shakeBtn[aria-pressed="true"] svg { transform: rotate( calc( var( --tilt, 0 ) * 22deg ) ); }
+#shakeBtn[aria-pressed="true"] { box-shadow: 0 0 0 calc( var( --lvl, 0 ) * 5px ) color-mix( in oklab, var( --accent ) 55%, transparent ); }
 
 /* Setup dialog */
 dialog.sheet { width: min(96vw, 780px); max-width: none; max-height: min(92vh, 920px); padding: 0; border: 1px solid var(--stroke); border-radius: 26px; color: var(--text); background: color-mix(in oklab, var(--bg) 76%, black); box-shadow: 0 40px 120px rgba(0,0,0,.55); overflow: hidden; font-family: var(--ui-font); }
@@ -456,7 +460,6 @@ dialog.sheet { width: 100vw; max-height: 94vh; margin: auto 0 0; border-radius: 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { ConvexHull } from 'three/addons/math/ConvexHull.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -979,7 +982,7 @@ const THEMES = {
 		],
 	},
 	medieval: {
-		name: 'Medieval Castle', bg: '#07050a', fog: '#08060a', exposure: 1.25, env: 'room', envIntensity: 0.32,
+		name: 'Medieval Castle', bg: '#07050a', fog: '#08060a', exposure: 1.25, env: 'candle', envIntensity: 0.48,
 		bloom: [ 0.22, 0.5, 0.92 ], font: [ 400, '"MedievalSharp"' ], candles: true,
 		css: { '--accent': '#ffb35c', '--accent2': '#b5541c', '--text': '#f7e9d6', '--muted': 'rgba(247,233,214,.6)', '--glass': 'rgba(14,9,6,.55)', '--vig': 'rgba(0,0,0,.72)', '--bg': '#07050a', '--btn-fg': '#2a1406' },
 		phys: { floorFriction: 0.55, floorRest: 0.3, wallRest: 0.35 },
@@ -1503,12 +1506,35 @@ composer.setPixelRatio( renderer.getPixelRatio() );
 composer.setSize( innerWidth, innerHeight );
 
 // Environment lighting for reflections.
+// Reflections come from these little studios. Every lamp is round (spheres and ellipses, never
+// boxes or rectangles), so highlights on glossy dice look like real lamps, not square glare.
 function buildEnvScene( kind ) {
-	if ( kind === 'room' ) return new RoomEnvironment();
 	const s = new THREE.Scene();
+	const glow = ( col, inten, r, pos, sc = [ 1, 1, 1 ] ) => { const m = new THREE.Mesh( new THREE.SphereGeometry( r, 48, 24 ), new THREE.MeshBasicMaterial( { color: new THREE.Color( col ).multiplyScalar( inten ) } ) ); m.position.set( ...pos ); m.scale.set( ...sc ); s.add( m ); };
+	if ( kind === 'room' || kind === 'candle' ) {
+		// A soft neutral room (or a dark hall lit by candles), laid out like a photo studio.
+		const walls = new THREE.Mesh( new THREE.SphereGeometry( 30, 48, 24 ), new THREE.ShaderMaterial( {
+			side: THREE.BackSide, depthWrite: false,
+			uniforms: { uTop: { value: new THREE.Color( kind === 'candle' ? 0x120a05 : 0x5a5a5a ) }, uBot: { value: new THREE.Color( kind === 'candle' ? 0x050302 : 0x1c1c1c ) } },
+			vertexShader: 'varying vec3 vP;\nvoid main() { vP = normalize( position ); gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }',
+			fragmentShader: 'uniform vec3 uTop; uniform vec3 uBot; varying vec3 vP;\nvoid main() { gl_FragColor = vec4( mix( uBot, uTop, smoothstep( -0.4, 0.8, vP.y ) ), 1.0 ); }',
+		} ) );
+		s.add( walls );
+		if ( kind === 'candle' ) {
+			// Four warm flames low around the table and a faint glow from the hall above.
+			[ [ -9, 2.2, -7 ], [ 10, 2.6, -5 ], [ 9, 2, 8 ], [ -10, 2.4, 6 ] ].forEach( ( p, k ) => glow( '#ffb066', 38 + k * 6, 0.55, p, [ 1, 1.6, 1 ] ) );
+			glow( '#ffcf99', 4, 2.4, [ 0, 18, 0 ], [ 1, 0.4, 1 ] );
+		} else {
+			glow( '#ffffff', 50, 1.45, [ -16, 14.4, 8.2 ] ); glow( '#ffffff', 50, 1.45, [ -16, 18, -8.2 ] );
+			glow( '#ffffff', 17, 2.6, [ 14.9, 12.2, -1.8 ], [ 0.7, 1, 1.4 ] ); glow( '#ffffff', 43, 2.4, [ -0.5, 8.9, 14.5 ], [ 1.25, 1, 0.7 ] );
+			glow( '#ffffff', 20, 1.25, [ 3.2, 11.5, -12.5 ] ); glow( '#ffffff', 100, 0.6, [ 0, 20, 0 ] );
+		}
+		return s;
+	}
 	const room = new THREE.Mesh( new THREE.BoxGeometry( 20, 12, 20 ), new THREE.MeshBasicMaterial( { color: kind === 'neon' ? 0x06020c : 0x03040a, side: THREE.BackSide } ) );
 	s.add( room );
-	const panel = ( col, inten, w, h, pos, look ) => { const m = new THREE.Mesh( new THREE.PlaneGeometry( w, h ), new THREE.MeshBasicMaterial( { color: new THREE.Color( col ).multiplyScalar( inten ), side: THREE.DoubleSide } ) ); m.position.set( ...pos ); m.lookAt( ...look ); s.add( m ); };
+	// Elliptical soft-boxes: round edges give round highlights.
+	const panel = ( col, inten, w, h, pos, look ) => { const m = new THREE.Mesh( new THREE.CircleGeometry( 0.5, 64 ), new THREE.MeshBasicMaterial( { color: new THREE.Color( col ).multiplyScalar( inten * 1.27 ), side: THREE.DoubleSide } ) ); m.scale.set( w, h, 1 ); m.position.set( ...pos ); m.lookAt( ...look ); s.add( m ); };
 	if ( kind === 'neon' ) {
 		panel( '#ff2bd6', 6, 3, 8, [ -9, 1, 0 ], [ 0, 0, 0 ] ); panel( '#22e6ff', 6, 3, 8, [ 9, 1, 0 ], [ 0, 0, 0 ] );
 		panel( '#7a3cff', 3, 12, 3, [ 0, 5.5, -6 ], [ 0, 0, 0 ] ); panel( '#ffffff', 2.2, 6, 1, [ 0, 5.8, 4 ], [ 0, 0, 0 ] );
@@ -3143,7 +3169,8 @@ function onMotion( e ) {
 		a = { x: ag.x - shake.g.x, y: ag.y - shake.g.y, z: ag.z - shake.g.z };
 	}
 	shake.a = { x: a.x || 0, y: a.y || 0, z: a.z || 0 }; shake.mag = Math.hypot( shake.a.x, shake.a.y, shake.a.z ); shake.at = performance.now();
-	if ( shake.on && anim.phase !== 'live' && shake.mag > 11 && ! $( '#config' ).open ) startLive();
+	if ( shake.on ) { shakeBtn.style.setProperty( '--tilt', clamp( shake.a.x / 12, -1, 1 ).toFixed( 2 ) ); shakeBtn.style.setProperty( '--lvl', clamp( shake.mag / 18, 0, 1 ).toFixed( 2 ) ); }
+	if ( shake.on && anim.phase !== 'live' && shake.mag > 9 && ! $( '#config' ).open ) startLive();
 }
 function startLive() {
 	if ( ! RAPIER || ! types.length || ! meshes[ 0 ].visible || anim.phase === 'gather' || anim.phase === 'held' ) return false;
@@ -3226,11 +3253,16 @@ async function askMotion() {
 }
 const applyShake = () => { shakeBtn.setAttribute( 'aria-pressed', String( shake.on ) ); shakeBtn.title = shake.on ? 'Shake to roll is on' : 'Shake to roll'; };
 shakeBtn.hidden = ! shakeSupported;
+// If no motion readings ever arrive, say so instead of failing silently.
+function checkMotionArrives() {
+	setTimeout( () => { if ( shake.on && ! shake.seen ) toast( 'No motion readings from this phone yet. Close the tab, reopen the page, tap the phone button and choose Allow when asked.' ); }, 1800 );
+}
 shakeBtn.addEventListener( 'click', async () => {
-	if ( shake.on ) shake.on = false;
+	// On, and readings are flowing: turn it off. Otherwise (re)ask for motion access.
+	if ( shake.on && shake.seen ) { shake.on = false; shakeBtn.style.removeProperty( '--tilt' ); shakeBtn.style.removeProperty( '--lvl' ); }
 	else {
-		if ( ! ( await askMotion() ) ) { toast( 'Motion access was not allowed, so shaking can\'t move the dice.' ); return; }
-		listenMotion(); shake.on = true; ensureAudio();
+		if ( ! ( await askMotion() ) ) { shake.on = false; applyShake(); toast( 'Motion access was not allowed. Close and reopen the page, tap the phone button and choose Allow.' ); return; }
+		listenMotion(); shake.on = true; ensureAudio(); checkMotionArrives();
 		toast( 'Shake your phone: the dice tumble with it. Hold still to let them land.' );
 	}
 	try { localStorage.setItem( 'dice.shake', shake.on ? '1' : '0' ); } catch ( err ) {}
