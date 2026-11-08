@@ -1406,7 +1406,14 @@ function makeDieMaterial( pal, type ) {
 const canvas = $( '#c' );
 const renderer = new THREE.WebGLRenderer( { canvas, antialias: false, powerPreference: 'high-performance' } );
 const isSmall = Math.min( innerWidth, innerHeight ) < 700;
-renderer.setPixelRatio( HQ ? Math.min( devicePixelRatio, isSmall ? 2.5 : 3 ) : Math.min( devicePixelRatio, isSmall ? 2 : 1.5 ) );
+// Render at the screen's real pixel density (phones are 3x), within a pixel budget so huge
+// displays stay fluid: ~9 MP in high resolution, ~3.5 MP otherwise.
+function pixelRatioFor() {
+	const dpr = window.devicePixelRatio || 1, css = Math.max( 1, innerWidth * innerHeight );
+	const budget = Math.sqrt( ( HQ ? 9.2e6 : 3.5e6 ) / css );
+	return clamp( Math.min( dpr, HQ ? 3 : 2, budget ), 1, 3 );
+}
+renderer.setPixelRatio( pixelRatioFor() );
 renderer.setSize( innerWidth, innerHeight, false );
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = theme.exposure;
@@ -1427,6 +1434,9 @@ composer.addPass( new RenderPass( scene, camera ) );
 const bloom = new UnrealBloomPass( new THREE.Vector2( innerWidth, innerHeight ), ...theme.bloom );
 composer.addPass( bloom );
 composer.addPass( new OutputPass() );
+// A composer built on a custom target keeps it at CSS-pixel size; resize it to device pixels now.
+composer.setPixelRatio( renderer.getPixelRatio() );
+composer.setSize( innerWidth, innerHeight );
 
 // Environment lighting for reflections.
 function buildEnvScene( kind ) {
@@ -2145,21 +2155,76 @@ function simulate( seed, nudge = null ) {
 		finals.push( q );
 	}
 	world.free();
+	settleTail( frames, n );
 	return { frames, events, valid, settled, duration: ( frames.length - 1 ) * DT };
+}
+// Contact solvers never quite stop: a resting die (a thin coin most of all) keeps rocking by a
+// fraction of a degree. Once a die stays within a hair of its final pose, glide it there
+// smoothly and hold it still, so nothing trembles at rest.
+function settleTail( frames, n ) {
+	const N = frames.length, last = frames[ N - 1 ], qa = new THREE.Quaternion(), qb = new THREE.Quaternion(), BLEND = 18;
+	for ( let i = 0; i < n; i++ ) {
+		const o = i * 7;
+		qb.set( last[ o + 3 ], last[ o + 4 ], last[ o + 5 ], last[ o + 6 ] );
+		let s0 = N - 1;
+		while ( s0 > 0 ) {
+			const F = frames[ s0 - 1 ];
+			const dp = Math.hypot( F[ o ] - last[ o ], F[ o + 1 ] - last[ o + 1 ], F[ o + 2 ] - last[ o + 2 ] );
+			const dq = Math.abs( F[ o + 3 ] * qb.x + F[ o + 4 ] * qb.y + F[ o + 5 ] * qb.z + F[ o + 6 ] * qb.w );
+			if ( dp > 0.02 || dq < 0.99985 ) break; // ~2 degrees
+			s0--;
+		}
+		if ( s0 >= N - 2 ) continue;
+		const S = frames[ s0 ], p0 = [ S[ o ], S[ o + 1 ], S[ o + 2 ] ];
+		qa.set( S[ o + 3 ], S[ o + 4 ], S[ o + 5 ], S[ o + 6 ] );
+		const span = Math.min( BLEND, N - 1 - s0 ), q = new THREE.Quaternion();
+		for ( let s = s0 + 1; s < N; s++ ) {
+			const k = Math.min( 1, ( s - s0 ) / span ), e = k * k * ( 3 - 2 * k ), F = frames[ s ];
+			q.slerpQuaternions( qa, qb, e );
+			F[ o ] = p0[ 0 ] + ( last[ o ] - p0[ 0 ] ) * e; F[ o + 1 ] = p0[ 1 ] + ( last[ o + 1 ] - p0[ 1 ] ) * e; F[ o + 2 ] = p0[ 2 ] + ( last[ o + 2 ] - p0[ 2 ] ) * e;
+			F[ o + 3 ] = q.x; F[ o + 4 ] = q.y; F[ o + 5 ] = q.z; F[ o + 6 ] = q.w;
+		}
+	}
 }
 
 /* ------------------------------------------------------------------ *
  * Rolling: simulate, then bake each requested result by a symmetry
  * ------------------------------------------------------------------ */
-// Re-roll one die from the current table. Physics decides every result here: the tapped die
-// and any die it knocks over land wherever the collision sends them (locked dice never move).
+// Re-roll one die from the current table. Physics decides the motion: the tapped die hops and
+// anything it knocks over tumbles for real (locked dice never move). Forced results and loaded
+// weights still hold: a die that changes face gets its number baked in by a symmetry, swapped
+// in at the instant it spins fastest so the change hides inside the motion.
 function planNudge( idx ) {
 	const poses = meshes.map( ( m ) => ( { p: m.position.clone(), q: m.quaternion.clone() } ) );
 	let sim = null;
 	for ( let tries = 0; tries < 20; tries++ ) { sim = simulate( ( seedBase += 7919 ), { idx, poses, lock: params.lock } ); if ( sim.valid ) break; }
-	const last = sim.frames[ sim.frames.length - 1 ];
-	const results = types.map( ( t, i ) => t.faces[ readFace( t, new THREE.Quaternion( last[ i * 7 + 3 ], last[ i * 7 + 4 ], last[ i * 7 + 5 ], last[ i * 7 + 6 ] ) ) ].label );
-	return { ...sim, offsets: types.map( () => new THREE.Quaternion() ), results, kind: 'nudge', die: idx };
+	const rng = mulberry32( seedBase ^ 0x85ebca6b );
+	const F = sim.frames, last = F[ F.length - 1 ], offsets = [], results = [], swap = [];
+	types.forEach( ( t, i ) => {
+		const o = i * 7, q = new THREE.Quaternion( last[ o + 3 ], last[ o + 4 ], last[ o + 5 ], last[ o + 6 ] );
+		const u = readFace( t, q ), before = t.faces[ readFace( t, poses[ i ].q ) ].label;
+		let value = t.faces[ u ].label, S = new THREE.Quaternion(), at = 0;
+		let target = params.reverse[ i ];
+		if ( target == null && params.weights[ t.N ] && ( i === idx || value !== before ) ) target = sampleWeighted( params.weights[ t.N ], rng );
+		if ( target != null && target !== value ) {
+			for ( let fi = 0; fi < t.faces.length; fi++ ) {
+				if ( ! t.faces[ fi ].labeled || t.faces[ fi ].label !== target ) continue;
+				const sym = findSymmetry( t, fi, u );
+				if ( sym ) { S = sym; value = target; break; }
+			}
+			// Fastest spin, preferring frames high in the air (never while still sitting on the table).
+			let best = -1;
+			const y0 = F[ 0 ][ o + 1 ];
+			for ( let s = 1; s < F.length; s++ ) {
+				const A = F[ s - 1 ], B = F[ s ];
+				const w = 1 - Math.abs( A[ o + 3 ] * B[ o + 3 ] + A[ o + 4 ] * B[ o + 4 ] + A[ o + 5 ] * B[ o + 5 ] + A[ o + 6 ] * B[ o + 6 ] );
+				const score = w * ( 0.05 + clamp( ( B[ o + 1 ] - y0 ) / ( 2 * t.circumR ), 0, 1 ) );
+				if ( score > best ) { best = score; at = s; }
+			}
+		}
+		offsets.push( S ); results.push( value ); swap.push( at );
+	} );
+	return { ...sim, offsets, swap, results, kind: 'nudge', die: idx };
 }
 function rerollDie( idx ) {
 	if ( ! RAPIER || anim.phase !== 'done' ) return;
@@ -2303,12 +2368,17 @@ function applyFrame( roll, t ) {
 		const o = i * 7;
 		m.position.set( A[ o ] + ( B[ o ] - A[ o ] ) * a, A[ o + 1 ] + ( B[ o + 1 ] - A[ o + 1 ] ) * a, A[ o + 2 ] + ( B[ o + 2 ] - A[ o + 2 ] ) * a );
 		qa.set( A[ o + 3 ], A[ o + 4 ], A[ o + 5 ], A[ o + 6 ] ); qb.set( B[ o + 3 ], B[ o + 4 ], B[ o + 5 ], B[ o + 6 ] );
-		m.quaternion.slerpQuaternions( qa, qb, a ).multiply( roll.offsets[ i ] );
+		m.quaternion.slerpQuaternions( qa, qb, a );
+		if ( ! roll.swap || i0 >= roll.swap[ i ] ) m.quaternion.multiply( roll.offsets[ i ] );
 	} );
 }
 function poseAt( roll, frameIdx ) {
 	const F = roll.frames[ frameIdx ];
-	return meshes.map( ( m, i ) => ( { p: V3( F[ i * 7 ], F[ i * 7 + 1 ], F[ i * 7 + 2 ] ), q: new THREE.Quaternion( F[ i * 7 + 3 ], F[ i * 7 + 4 ], F[ i * 7 + 5 ], F[ i * 7 + 6 ] ).multiply( roll.offsets[ i ] ) } ) );
+	return meshes.map( ( m, i ) => {
+		const q = new THREE.Quaternion( F[ i * 7 + 3 ], F[ i * 7 + 4 ], F[ i * 7 + 5 ], F[ i * 7 + 6 ] );
+		if ( ! roll.swap || frameIdx >= roll.swap[ i ] ) q.multiply( roll.offsets[ i ] );
+		return { p: V3( F[ i * 7 ], F[ i * 7 + 1 ], F[ i * 7 + 2 ] ), q };
+	} );
 }
 function hideResults() {
 	$( '#results' ).classList.remove( 'on' );
@@ -2774,7 +2844,9 @@ function tick() {
 }
 
 function onResize() {
+	renderer.setPixelRatio( pixelRatioFor() );
 	renderer.setSize( innerWidth, innerHeight, false );
+	composer.setPixelRatio( renderer.getPixelRatio() );
 	composer.setSize( innerWidth, innerHeight );
 	bloom.resolution.set( innerWidth, innerHeight );
 	if ( reflector ) reflector.getRenderTarget().setSize( innerWidth * ( HQ ? 1 : 0.6 ) * renderer.getPixelRatio(), innerHeight * ( HQ ? 1 : 0.6 ) * renderer.getPixelRatio() );
@@ -2857,7 +2929,7 @@ document.querySelector( 'meta[name="theme-color"]' ).setAttribute( 'content', th
 /* ------------------------------------------------------------------ *
  * Boot
  * ------------------------------------------------------------------ */
-window.__dice = { params, results: null, get types() { return types; }, get scene() { return scene; }, get camera() { return camera; }, get controls() { return controls; }, get renderer() { return renderer; }, planNudge: ( i ) => planNudge( i ), planRoll: () => planRoll(), sim: ( seed ) => simulate( seed ) };
+window.__dice = { params, results: null, get types() { return types; }, get scene() { return scene; }, get camera() { return camera; }, get controls() { return controls; }, get renderer() { return renderer; }, get composer() { return composer; }, planNudge: ( i ) => planNudge( i ), planRoll: () => planRoll(), sim: ( seed ) => simulate( seed ) };
 ( async () => {
 	try {
 		const fontReady = Promise.race( [ document.fonts.load( fontStr( 100 ) ).then( () => document.fonts.ready ), new Promise( ( r ) => setTimeout( r, 3000 ) ) ] );

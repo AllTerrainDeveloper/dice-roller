@@ -18,13 +18,13 @@
 - **Crystal Palace:** refractive gem dice with dispersion that bend the crystal floor behind them and cast coloured caustic pools, animated chromatic caustics, a transmissive crystal frame with a prismatic under-glow, crystal spires, drifting sparkles and glass-chime sounds.
 - **Stone Age:** a court of polished cobblestones shaded per pixel, with the same uneven surface in the physics, so dice wobble and settle tilted on the stones; worn, hand-carved stone dice and a ring of pebbles as the border.
 - **Medieval Castle:** a dark oak table in a castle hall lit by four wax candles near the corners, each with a living flame and its own flickering, shadow-casting light, so the shadows shake.
-- **Tap to re-roll** (`reroll=1`): tap a die, or its result chip, and it jumps high with a random direction and spin. Real physics against the other dice, so the dice it hits can change too. With `lock=1`, settled dice become immovable obstacles and keep their results.
+- **Tap to re-roll** (`reroll=1`): tap a die, or its result chip, and it jumps high with a random direction and spin. Real physics against the other dice, so the dice it hits can change too, while forced and loaded results keep holding. With `lock=1`, settled dice become immovable obstacles and keep their results.
 - **Physically based rendering** with three.js: clearcoat resin, glass with dispersion, metal and pearlescent dice, engraved numbers, soft shadows and mirror floors.
 - **Per-die styling.** Tap a die's shape in the setup dialog to pick its finish, body colour and number colour. Each table offers its own materials (Stone Age: carved stone, polished stone, bone; Crystal Palace: gem, clear crystal, opal; Synthwave: neon ink, glossy, smoked glass; and so on).
 - **Setup dialog.** Build any configuration visually. It only writes the query string, so every setup is a shareable link.
 - **Roll history.** Every roll is recorded frame by frame and can be replayed at real speed or in slow motion, or cleared.
 - **Result badges** over each die can be hidden with one button.
-- **High resolution by default:** full device resolution, 8× MSAA, double-resolution textures and smoother dice. It can be switched off per device in the setup dialog.
+- **High resolution by default:** the screen's real pixel density (3× on most phones, within a pixel budget on huge displays), 8× MSAA, double-resolution textures and smoother dice. It can be switched off per device in the setup dialog.
 - **Smooth camera.** It plans each roll from the recorded trajectory, pulling back before a high toss and easing back in with damped springs.
 - **Installable PWA.** Works offline after the first visit.
 - Responsive framing for phones and desktops, orbit and zoom, keyboard shortcuts.
@@ -39,7 +39,7 @@ The page is configured entirely through its query string. With no parameters it 
 | `weights` | `weights=[6,1,1,10,1,1,1]` | Loaded dice. The first number picks the die size, then one relative weight per face. Here face 3 of every d6 is 10× as likely. Several: `weights=[[6,1,1,10,1,1,1],[20,…]]`. |
 | `reverse` | `reverse=[2,4,6]` | Results to land on, in dice order. Use `0` for a die that should roll freely, e.g. `reverse=[0,20]`. |
 | `background` | `background=crystal` | `felt`, `wood`, `marble`, `cosmos`, `neon`, `velvet`, `crystal`, `stone`, `medieval` (or `1`–`9`). |
-| `reroll` | `reroll=1` | Tap a die (or its result chip) to re-roll just that die. Re-rolls are pure physics: forced results and weights don't apply to them. |
+| `reroll` | `reroll=1` | Tap a die (or its result chip) to re-roll just that die. The motion is pure physics, and forced results and weights still hold: a die forced to 4 lands on 4 again, even when knocked over by another die. |
 | `look` | `look=[c1121f-ffffff-glass,0,1f5fe0-gold-polished]` | Per-die style, in dice order: body colour, number colour (hex, `gold`, `silver` or `auto`) and finish. `0` keeps the table's default. Finishes: `gloss`, `matte`, `metal`, `pearl`, `glass`, `gem`, `stone`, `polished`, `neon`; a finish the table doesn't offer falls back to its closest material. |
 | `hideui` | `hideui=1` | Hide every button and the results; only the settings button stays (top-right). Tap the table or press Space to roll. Handy for streams and display screens. |
 | `lock` | `lock=1` | With `reroll=1`: settled dice can't be moved; re-rolled dice bounce off them. |
