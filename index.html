@@ -128,6 +128,38 @@ body.ui-hidden #cfgBtn:hover, body.ui-hidden #cfgBtn:focus-visible { opacity: 1;
 .icon-btn .badge { position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: linear-gradient(180deg, var(--accent), var(--accent2)); color: var(--btn-fg); font: 700 10px/18px var(--ui-font); text-align: center; box-shadow: 0 3px 8px rgba(0,0,0,.35); }
 .icon-btn .badge[hidden] { display: none; }
 .icon-btn[hidden] { display: none; }
+/* Custom faces in results */
+.emo { background: none !important; -webkit-background-clip: border-box !important; background-clip: border-box !important; color: var(--text) !important; -webkit-text-fill-color: currentColor; }
+.chip b { max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.solo b.word { font-size: 26px; max-width: 70vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.results.nototal .total { display: none; }
+/* Face editor */
+.facesb { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 10px; border-radius: 12px; border: 1px dashed color-mix( in oklab, var( --text ) 22%, transparent ); background: rgba( 255, 255, 255, .03 ); color: var( --text ); font: 600 12.5px var( --ui-font ); cursor: pointer; text-align: left; transition: background .2s, border-color .2s; }
+.facesb:hover { background: rgba( 255, 255, 255, .07 ); border-color: color-mix( in oklab, var( --accent ) 55%, transparent ); }
+.facesb.set { border-style: solid; border-color: color-mix( in oklab, var( --accent ) 50%, transparent ); background: color-mix( in oklab, var( --accent ) 10%, transparent ); }
+.facesb .fi { flex: none; font-size: 15px; }
+.facesb .fv { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var( --muted ); font-weight: 500; }
+.facesb.set .fv { color: var( --text ); }
+#facePop .sp-body > section { min-width: 0; }
+.fp-sets { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.fp-sets::-webkit-scrollbar { display: none; }
+.fp-set { flex: none; display: grid; gap: 4px; justify-items: start; min-width: 118px; padding: 10px 12px; border-radius: 14px; border: 1px solid var( --stroke ); background: rgba( 255, 255, 255, .04 ); color: var( --text ); font: 600 12.5px var( --ui-font ); cursor: pointer; text-align: left; transition: transform .2s cubic-bezier( .2, 1.4, .4, 1 ), border-color .2s, background .2s; }
+.fp-set:hover { transform: translateY( -2px ); border-color: color-mix( in oklab, var( --accent ) 55%, transparent ); }
+.fp-set.on { border-color: var( --accent ); background: color-mix( in oklab, var( --accent ) 14%, transparent ); }
+.fp-set .pv { font-size: 17px; letter-spacing: 1px; white-space: nowrap; }
+.fp-set small { color: var( --muted ); font-weight: 500; }
+.fp-grid { display: grid; grid-template-columns: repeat( auto-fill, minmax( 96px, 1fr ) ); gap: 8px; }
+.fp-cell { position: relative; }
+.fp-cell i { position: absolute; left: 9px; top: 6px; font: 700 9.5px var( --ui-font ); font-style: normal; letter-spacing: .08em; color: var( --muted ); pointer-events: none; }
+.fp-cell input { width: 100%; height: 58px; padding: 14px 8px 4px; border-radius: 14px; border: 1px solid var( --stroke ); background: rgba( 255, 255, 255, .05 ); color: var( --text ); font: 600 21px var( --ui-font ); text-align: center; outline: none; transition: border-color .2s, background .2s, box-shadow .2s; }
+.fp-cell input::placeholder { color: color-mix( in oklab, var( --text ) 30%, transparent ); }
+.fp-cell.sel input { border-color: var( --accent ); background: color-mix( in oklab, var( --accent ) 10%, transparent ); box-shadow: 0 0 0 3px color-mix( in oklab, var( --accent ) 22%, transparent ); }
+.fp-emo { display: grid; grid-template-columns: repeat( auto-fill, minmax( 42px, 1fr ) ); gap: 6px; }
+.fp-emo button { height: 42px; border: 0; border-radius: 12px; background: rgba( 255, 255, 255, .05 ); font-size: 22px; cursor: pointer; transition: transform .15s cubic-bezier( .2, 1.6, .4, 1 ), background .15s; }
+.fp-emo button:hover { background: rgba( 255, 255, 255, .12 ); transform: scale( 1.12 ); }
+.fp-emo button:active { transform: scale( .9 ); }
+.fp-hint { margin: -2px 0 10px; font-size: 12px; color: var( --muted ); }
+.fp-prev { font-size: 40px; line-height: 1; }
 .critrules { margin-top: 10px; display: grid; gap: 8px; }
 .wcard:not(.on) .critrules { display: none; }
 .critrules label { display: grid; grid-template-columns: minmax( 0, 7.5em ) minmax( 0, 1fr ); gap: 10px; align-items: center; font: 600 12.5px var( --ui-font ); color: var( --muted, rgba( 255, 255, 255, .7 ) ); }
@@ -474,6 +506,21 @@ dialog.sheet { width: 100vw; max-height: 94vh; margin: auto 0 0; border-radius: 
 				<footer><button type="button" class="btn2" id="spReset">Use table style</button><button type="button" class="btn1" id="spDone">Done</button></footer>
 			</div>
 		</div>
+		<div class="stylepop" id="facePop" hidden>
+			<div class="sp-card" role="dialog" aria-modal="true" aria-labelledby="fpTitle">
+				<header>
+					<div class="sp-prev fp-prev" id="fpPrev">🎲</div>
+					<div><h3 id="fpTitle">Faces</h3><p id="fpSub"></p></div>
+					<button class="x" type="button" id="fpClose" aria-label="Close faces">✕</button>
+				</header>
+				<div class="sp-body">
+					<section><h4>Quick sets</h4><div class="fp-sets" id="fpSets"></div></section>
+					<section><h4>Faces</h4><p class="fp-hint">Tap a face and type a word, or tap emoji below to fill the faces one by one. Leave a face empty to keep its number.</p><div class="fp-grid" id="fpGrid"></div></section>
+					<section><h4>Emoji</h4><div class="fp-emo" id="fpEmo"></div></section>
+				</div>
+				<footer><button type="button" class="btn2" id="fpReset">Use numbers</button><button type="button" class="btn1" id="fpDone">Done</button></footer>
+			</div>
+		</div>
 	</div>
 </dialog>
 
@@ -563,7 +610,7 @@ function allowedFinish( themeKey, f ) {
  *   sum>=30     a rule on the total of all dice
  * A rule is a number, >=N, >N, <=N, <N, a range like 19-20, or alternatives like 1|20.
  */
-function parseCritRules( raw, label, n, warnings ) {
+function parseCritRules( raw, label, n, warnings, faces = [] ) {
 	if ( raw == null ) return null;
 	const t = String( raw ).trim().toLowerCase().replace( /\s+/g, '' );
 	if ( ! t ) return null;
@@ -577,10 +624,12 @@ function parseCritRules( raw, label, n, warnings ) {
 			}
 			m = a.match( /^(\d+)-(\d+)$/ );
 			if ( m ) { const lo = Math.min( +m[ 1 ], +m[ 2 ] ), hi = Math.max( +m[ 1 ], +m[ 2 ] ); return ( v ) => v >= lo && v <= hi; }
+			// A custom face, by its text: crit=🌮.
+			if ( faces.some( ( f ) => f && f.includes( a ) ) ) return ( v, i ) => !! ( faces[ i ] && faces[ i ][ v - 1 ] === a );
 			return null;
 		} );
-		if ( alts.some( ( f ) => ! f ) ) { warnings.push( `Can't read the ${ label } rule "${ x }". Use a number, >=N, <=N, >N, <N, a range like 19-20 or alternatives like 1|20.` ); return null; }
-		return ( v ) => alts.some( ( f ) => f( v ) );
+		if ( alts.some( ( f ) => ! f ) ) { warnings.push( `Can't read the ${ label } rule "${ x }". Use a number, >=N, <=N, >N, <N, a range like 19-20, alternatives like 1|20, or one of the dice's custom faces.` ); return null; }
+		return ( v, i ) => alts.some( ( f ) => f( v, i ) );
 	};
 	const m = t.match( /^(sum|total)(.*)$/ );
 	if ( m ) { const f = one( m[ 2 ] ); return f ? { sum: f, dice: new Array( n ).fill( null ) } : null; }
@@ -610,6 +659,21 @@ const params = ( () => {
 	if ( dice.length > 30 ) { warnings.push( 'Showing the first 30 dice.' ); dice = dice.slice( 0, 30 ); }
 	if ( ! dice.length ) dice = [ 6 ];
 
+	// faces=[🍕|🍣|🌮|🍔|🥗|🍜,0,Yes|No]: custom faces for each die, | between faces, 0 keeps the
+	// numbers. Without dice=…, each list also sets its die's size (six faces make a d6).
+	const facesRaw = get( 'faces', 'face', 'labels' );
+	let faceLists = [];
+	if ( facesRaw ) {
+		let t = facesRaw.trim(); if ( /^\[[\s\S]*\]$/.test( t ) ) t = t.slice( 1, -1 );
+		faceLists = t.split( ',' ).map( ( it ) => { it = it.trim(); return ! it || it === '0' ? null : it.split( '|' ).map( ( x ) => [ ...x.trim() ].slice( 0, 16 ).join( '' ) ); } );
+		if ( ! get( 'dices', 'dice', 'd' ) ) dice = faceLists.map( ( l ) => clamp( l ? l.length : 6, 2, 100 ) ).slice( 0, 30 );
+	}
+	const faces = dice.map( ( n, i ) => {
+		const l = faceLists[ i ]; if ( ! l ) return null;
+		const f = Array.from( { length: n }, ( _, k ) => l[ k ] || null );
+		return f.some( Boolean ) ? f : null;
+	} );
+
 	const weights = {};
 	for ( const raw of getAll( 'weights', 'weight', 'loaded', 'bias' ) ) {
 		const v = parse( raw );
@@ -627,7 +691,12 @@ const params = ( () => {
 		}
 	}
 
-	const revRaw = flat( parse( get( 'reverse', 'results', 'result' ) ) ).map( ( x ) => Math.round( Number( x ) ) );
+	// Forced results can also name a custom face: reverse=[🍕,0].
+	const revStr = get( 'reverse', 'results', 'result' );
+	const revTok = revStr ? revStr.trim().replace( /^\[|\]$/g, '' ).split( ',' ).map( ( x ) => x.trim() ) : [];
+	const revRaw = revTok.some( ( x ) => x && ! /^-?\d+(\.\d+)?$/.test( x ) )
+		? revTok.map( ( x, i ) => ( /^-?\d+(\.\d+)?$/.test( x ) ? Math.round( Number( x ) ) : faces[ i ] ? faces[ i ].indexOf( x ) + 1 || NaN : NaN ) )
+		: flat( parse( revStr ) ).map( ( x ) => Math.round( Number( x ) ) );
 	const reverse = dice.map( ( n, i ) => {
 		const v = revRaw[ i ];
 		if ( v === undefined || ! Number.isFinite( v ) || v === 0 ) return null; // 0 = roll freely
@@ -645,7 +714,7 @@ const params = ( () => {
 	const crits = ! /^(0|false|off|no)$/i.test( String( get( 'crits', 'suspense' ) ?? '' ).trim() );
 	// crit=… and fumble=… override the defaults (a d20 or d100: crit on its top number, fumble on 1).
 	const critRaw = get( 'crit' ), fumbleRaw = get( 'fumble', 'fail' );
-	const critHigh = parseCritRules( critRaw, 'crit', dice.length, warnings ), critLow = parseCritRules( fumbleRaw, 'fumble', dice.length, warnings );
+	const critHigh = parseCritRules( critRaw, 'crit', dice.length, warnings, faces ), critLow = parseCritRules( fumbleRaw, 'fumble', dice.length, warnings, faces );
 	// look=[c1121f-ffffff-glass,0,…]: per-die body colour, number colour (hex, gold, silver or auto) and finish.
 	const look = dice.map( () => null );
 	const lookRaw = get( 'look', 'style', 'colors' );
@@ -658,7 +727,7 @@ const params = ( () => {
 			look[ i ] = { body: '#' + b.toLowerCase(), ink: hex( k ) ? '#' + k.toLowerCase() : k === 'gold' || k === 'silver' ? k : null, finish: FINISHES.includes( f ) ? f : 'gloss' };
 		} );
 	}
-	return { dice, weights, reverse, background, reroll, lock, hideui, crits, critRaw: critRaw || '', fumbleRaw: fumbleRaw || '', critHigh, critLow, look, warnings };
+	return { dice, faces, weights, reverse, background, reroll, lock, hideui, crits, critRaw: critRaw || '', fumbleRaw: fumbleRaw || '', critHigh, critLow, look, warnings };
 } )();
 
 /* ------------------------------------------------------------------ *
@@ -1136,8 +1205,10 @@ function needsUnderline( s, max ) {
 
 const measureCtx = document.createElement( 'canvas' ).getContext( '2d' );
 function fontStr( px ) { return `${ theme.font[ 0 ] } ${ px }px ${ theme.font[ 1 ] }, "Outfit", "Inter", sans-serif`; }
-function inkBox( str ) {
-	measureCtx.font = fontStr( 100 );
+const EMOJI_RE = /\p{Extended_Pictographic}/u;
+function emojiFont( px ) { return `${ theme.font[ 0 ] } ${ px }px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", ${ theme.font[ 1 ] }, sans-serif`; }
+function inkBox( str, emoji = false ) {
+	measureCtx.font = emoji ? emojiFont( 100 ) : fontStr( 100 );
 	const m = measureCtx.measureText( str );
 	return { w: ( m.actualBoundingBoxLeft + m.actualBoundingBoxRight ) / 100, h: ( m.actualBoundingBoxAscent + m.actualBoundingBoxDescent ) / 100 };
 }
@@ -1150,9 +1221,9 @@ function insidePoly( poly, x, y, m ) {
 	return true;
 }
 function polyArea2( poly ) { let a = 0; for ( let i = 0; i < poly.length; i++ ) { const [ x1, y1 ] = poly[ i ], [ x2, y2 ] = poly[ ( i + 1 ) % poly.length ]; a += x1 * y2 - x2 * y1; } return Math.abs( a ) / 2; }
-function fitLabel( poly, str, ul ) {
+function fitLabel( poly, str, ul, emoji = false ) {
 	const area = polyArea2( poly ), margin = 0.06 * Math.sqrt( area );
-	const box = inkBox( str ), tw = box.w, th = box.h + ( ul ? 0.2 : 0 );
+	const box = inkBox( str, emoji ), tw = box.w, th = box.h + ( ul ? 0.2 : 0 );
 	const ys = poly.map( ( p ) => p[ 1 ] ), ymin = Math.min( ...ys ), ymax = Math.max( ...ys );
 	const cx = poly.reduce( ( s, p ) => s + p[ 0 ], 0 ) / poly.length;
 	let best = { fs: 0, ax: 0, ay: 0, alpha: 0 };
@@ -1174,7 +1245,7 @@ function fitLabel( poly, str, ul ) {
 			if ( score > best.fs * ( best.alpha ? 0.8 : 1 ) ) best = { fs: lo, ax, ay, alpha };
 		}
 	}
-	best.fs = Math.min( best.fs * 0.84, 0.62 * Math.sqrt( area ) );
+	best.fs = Math.min( best.fs * ( emoji ? 0.9 : 0.84 ), ( emoji ? 0.7 : 0.62 ) * Math.sqrt( area ) );
 	return best;
 }
 
@@ -1281,28 +1352,34 @@ function buildAtlas( type ) {
 	const ctx = cv.getContext( '2d' );
 	ctx.fillStyle = '#000'; ctx.fillRect( 0, 0, S, S ); ctx.fillStyle = '#fff';
 	const maxLabel = type.doubled ? type.N : type.fc;
+	// Custom faces: words are engraved like numbers; anything with emoji is printed in full colour
+	// on a separate decal layer (engraving would turn it into a one-colour silhouette).
+	const text = ( v ) => ( type.custom && type.custom[ v - 1 ] ) || String( v );
+	let dcv = null, dctx = null;
+	const decal = () => { if ( ! dctx ) { dcv = document.createElement( 'canvas' ); dcv.width = dcv.height = S; dctx = dcv.getContext( '2d' ); } return dctx; };
 	lf.forEach( ( f, j ) => {
 		const col = j % cols, row = Math.floor( j / cols );
 		const bcx = ( f.bb.x0 + f.bb.x1 ) / 2, bcy = ( f.bb.y0 + f.bb.y1 ) / 2;
 		f.toPx = ( x, y ) => [ ( col + 0.5 ) * cw + ( x - bcx ) * k, ( row + 0.5 ) * ch - ( y - bcy ) * k ];
 		const draw = ( str, ax, ay, alpha, fs, ul ) => {
-			const [ px, py ] = f.toPx( ax, ay ), fpx = fs * k;
-			ctx.save(); ctx.translate( px, py ); ctx.rotate( -alpha ); ctx.font = fontStr( fpx );
-			const m = ctx.measureText( str ), asc = m.actualBoundingBoxAscent, desc = m.actualBoundingBoxDescent;
+			const [ px, py ] = f.toPx( ax, ay ), fpx = fs * k, emoji = EMOJI_RE.test( str ), c = emoji ? decal() : ctx;
+			c.save(); c.translate( px, py ); c.rotate( -alpha ); c.font = emoji ? emojiFont( fpx ) : fontStr( fpx );
+			if ( emoji ) c.fillStyle = '#f6f2e8';
+			const m = c.measureText( str ), asc = m.actualBoundingBoxAscent, desc = m.actualBoundingBoxDescent;
 			const inkW = m.actualBoundingBoxLeft + m.actualBoundingBoxRight, ulH = ul ? fpx * 0.2 : 0;
 			const base = ( asc - desc ) / 2 - ulH / 2;
-			ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-			ctx.fillText( str, ( m.actualBoundingBoxLeft - m.actualBoundingBoxRight ) / 2, base );
-			if ( ul ) ctx.fillRect( -inkW * 0.38, base + desc + fpx * 0.06, inkW * 0.76, Math.max( 1, fpx * 0.08 ) );
-			ctx.restore();
+			c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+			c.fillText( str, ( m.actualBoundingBoxLeft - m.actualBoundingBoxRight ) / 2, base );
+			if ( ul ) c.fillRect( -inkW * 0.38, base + desc + fpx * 0.06, inkW * 0.76, Math.max( 1, fpx * 0.08 ) );
+			c.restore();
 		};
 		if ( type.vertexLabel ) {
 			f.idx.forEach( ( vi, a ) => {
 				const [ x, y ] = f.poly[ a ], len = Math.hypot( x, y );
-				draw( String( type.vertexLabel[ vi ] ), x * 0.56, y * 0.56, Math.atan2( -x, y ), len * 0.36, false );
+				draw( text( type.vertexLabel[ vi ] ), x * 0.56, y * 0.56, Math.atan2( -x, y ), len * 0.36, false );
 			} );
 		} else {
-			const str = String( f.label ), ul = needsUnderline( str, maxLabel ), fit = fitLabel( f.poly, str, ul );
+			const custom = !! ( type.custom && type.custom[ f.label - 1 ] ), str = text( f.label ), ul = ! custom && needsUnderline( str, maxLabel ), fit = fitLabel( f.poly, str, ul, EMOJI_RE.test( str ) );
 			draw( str, fit.ax, fit.ay, fit.alpha, fit.fs, ul );
 		}
 	} );
@@ -1318,6 +1395,8 @@ function buildAtlas( type ) {
 		bctx.globalAlpha = 1; bctx.globalCompositeOperation = 'source-over';
 	}
 	type.mask = texFrom( cv, { srgb: false } ); type.bump = texFrom( bump, { srgb: false } );
+	type.decal = null;
+	if ( dcv ) { type.decal = texFrom( dcv ); type.decal.premultiplyAlpha = true; type.decal.wrapS = type.decal.wrapT = THREE.ClampToEdgeWrapping; type.decal.anisotropy = renderer.capabilities.getMaxAnisotropy(); }
 	for ( const t of [ type.mask, type.bump ] ) { t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); }
 }
 
@@ -1448,6 +1527,11 @@ function addGroundAO( sh, level = 0 ) {
 	sh.vertexShader = 'varying float vGroundY;\n' + sh.vertexShader.replace( GROUND_AO_VERT[ 0 ], GROUND_AO_VERT[ 1 ] );
 	sh.fragmentShader = 'varying float vGroundY;\nuniform float groundLevel;\n' + sh.fragmentShader.replace( '#include <lights_fragment_end>', '#include <lights_fragment_end>\n' + GROUND_AO_FRAG );
 }
+let blankDecalTex = null;
+function blankDecal() {
+	if ( ! blankDecalTex ) { blankDecalTex = new THREE.DataTexture( new Uint8Array( [ 0, 0, 0, 0 ] ), 1, 1 ); blankDecalTex.needsUpdate = true; }
+	return blankDecalTex;
+}
 function makeDieMaterial( pal, type ) {
 	const m = new THREE.MeshPhysicalMaterial( {
 		color: pal.body, roughness: pal.rough ?? 0.3, metalness: pal.metal ?? 0,
@@ -1463,22 +1547,24 @@ function makeDieMaterial( pal, type ) {
 	const u = {
 		inkColor: { value: ink }, inkRoughness: { value: pal.inkRough ?? 0.55 }, inkMetal: { value: pal.inkMetal ?? 0 },
 		inkEmissive: { value: ink.clone().multiplyScalar( pal.glow ?? 0 ) },
+		decalMap: { value: type.decal || blankDecal() },
 	};
 	m.onBeforeCompile = ( sh ) => {
 		Object.assign( sh.uniforms, u );
 		sh.fragmentShader = sh.fragmentShader
-			.replace( '#include <common>', '#include <common>\nuniform vec3 inkColor;\nuniform float inkRoughness;\nuniform float inkMetal;\nuniform vec3 inkEmissive;' )
-			.replace( '#include <map_fragment>', 'float inkMask = 0.0;\n#ifdef USE_MAP\n\tinkMask = smoothstep( 0.08, 0.92, texture2D( map, vMapUv ).r );\n\tdiffuseColor.rgb = mix( diffuseColor.rgb, inkColor, inkMask );\n#endif' )
-			.replace( '#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n\troughnessFactor = mix( roughnessFactor, inkRoughness, inkMask );' )
-			.replace( '#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n\tmetalnessFactor = mix( metalnessFactor, inkMetal, inkMask );' )
-			.replace( '#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += inkEmissive * inkMask;' )
-			.replace( '#include <transmission_fragment>', THREE.ShaderChunk.transmission_fragment.replace( 'material.transmission = transmission;', 'material.transmission = transmission * ( 1.0 - inkMask );' ) );
+			.replace( '#include <common>', '#include <common>\nuniform vec3 inkColor;\nuniform float inkRoughness;\nuniform float inkMetal;\nuniform vec3 inkEmissive;\nuniform sampler2D decalMap;' )
+			// Printed emoji (premultiplied colour) sit on top of the body like a glossy decal.
+			.replace( '#include <map_fragment>', 'float inkMask = 0.0;\nfloat decalA = 0.0;\n#ifdef USE_MAP\n\tinkMask = smoothstep( 0.08, 0.92, texture2D( map, vMapUv ).r );\n\tdiffuseColor.rgb = mix( diffuseColor.rgb, inkColor, inkMask );\n\tvec4 decalCol = texture2D( decalMap, vMapUv );\n\tdecalA = decalCol.a;\n\tdiffuseColor.rgb = diffuseColor.rgb * ( 1.0 - decalA ) + decalCol.rgb;\n#endif' )
+			.replace( '#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n\troughnessFactor = mix( mix( roughnessFactor, inkRoughness, inkMask ), 0.3, decalA );' )
+			.replace( '#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n\tmetalnessFactor = mix( mix( metalnessFactor, inkMetal, inkMask ), 0.0, decalA );' )
+			.replace( '#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance = totalEmissiveRadiance * ( 1.0 - decalA ) + inkEmissive * inkMask;' )
+			.replace( '#include <transmission_fragment>', THREE.ShaderChunk.transmission_fragment.replace( 'material.transmission = transmission;', 'material.transmission = transmission * ( 1.0 - max( inkMask, decalA ) );' ) );
 		// On the uneven stone court the table sits a little higher on average.
 		addGroundAO( sh, theme.stone ? 0.07 : 0 );
 	};
 	// Front faces cast the shadow, so it starts exactly where the die meets the table.
 	m.shadowSide = THREE.FrontSide;
-	m.customProgramCacheKey = () => 'die-ink-v2';
+	m.customProgramCacheKey = () => 'die-ink-v3';
 	return m;
 }
 
@@ -2516,9 +2602,14 @@ function aoStrip( pts, out, width, alpha ) {
 }
 const tmpE = new THREE.Euler();
 function makeDice() {
-	types = params.dice.map( ( N ) => {
+	types = params.dice.map( ( N, i ) => {
 		if ( ! typeCache.has( N ) ) { const t = createDieType( N ); buildAtlas( t ); t.geometry = buildDieGeometry( t ); typeCache.set( N, t ); }
-		return typeCache.get( N );
+		const base = typeCache.get( N ), f = params.faces[ i ];
+		if ( ! f ) return base;
+		// Custom faces: same shape and physics, its own artwork (words engraved, emoji in colour).
+		const key = N + '|' + f.join( '|' );
+		if ( ! typeCache.has( key ) ) { const ct = { ...base, custom: f }; buildAtlas( ct ); ct.geometry = base.geometry; typeCache.set( key, ct ); }
+		return typeCache.get( key );
 	} );
 	const pal = theme.dice;
 	palettes = types.map( ( t, i ) => ( params.look[ i ] ? lookToPalette( { ...params.look[ i ], finish: allowedFinish( params.background, params.look[ i ].finish ) } ) : pal[ i % pal.length ] ) );
@@ -2572,23 +2663,31 @@ function hideResults() {
 	$( '#results' ).classList.remove( 'on' );
 	tagEls.forEach( ( el ) => el.classList.remove( 'on' ) );
 }
+// What a result looks like: the custom face (🌮, "Yes") or the number. Totals only add numbers.
+const escHtml = ( x ) => String( x ).replace( /&/g, '&amp;' ).replace( /</g, '&lt;' ).replace( />/g, '&gt;' ).replace( /"/g, '&quot;' );
+const faceText = ( i, v ) => ( types[ i ] && types[ i ].custom && types[ i ].custom[ v - 1 ] ) || String( v );
+const numericTotal = ( results ) => { let t = 0, any = false; results.forEach( ( v, i ) => { if ( ! ( types[ i ] && types[ i ].custom && types[ i ].custom[ v - 1 ] ) ) { t += v; any = true; } } ); return any ? t : null; };
 function showResults( roll ) {
 	const res = $( '#results' ), chips = $( '#chips' );
 	res.classList.remove( 'empty' );
 	res.classList.toggle( 'single', types.length === 1 );
-	$( '#soloType' ).textContent = 'd' + types[ 0 ].N; $( '#soloVal' ).textContent = roll.results[ 0 ];
+	$( '#soloType' ).textContent = 'd' + types[ 0 ].N; $( '#soloVal' ).textContent = faceText( 0, roll.results[ 0 ] );
+	$( '#soloVal' ).classList.toggle( 'word', faceText( 0, roll.results[ 0 ] ).length > 3 && ! EMOJI_RE.test( faceText( 0, roll.results[ 0 ] ) ) );
+	$( '#soloVal' ).classList.toggle( 'emo', EMOJI_RE.test( faceText( 0, roll.results[ 0 ] ) ) );
 	res.classList.toggle( 'tap', params.reroll );
 	chips.innerHTML = '';
 	roll.results.forEach( ( v, i ) => {
 		const c = document.createElement( 'div' ); c.className = 'chip'; c.style.setProperty( '--c', palettes[ i ].body ); c.style.transitionDelay = `${ i * 45 }ms`;
-		c.innerHTML = `<span class="sw"></span><i>d${ types[ i ].N }</i><b>${ v }</b>`; chips.appendChild( c );
+		c.innerHTML = `<span class="sw"></span><i>d${ types[ i ].N }</i><b${ EMOJI_RE.test( faceText( i, v ) ) ? ' class="emo"' : '' }>${ escHtml( faceText( i, v ) ) }</b>`; chips.appendChild( c );
 		if ( params.reroll ) { c.classList.add( 'tap' ); c.title = `Re-roll this d${ types[ i ].N }`; c.addEventListener( 'click', () => rerollDie( i ) ); }
 	} );
-	$( '#totalVal' ).textContent = roll.results.reduce( ( a, b ) => a + b, 0 );
+	const tot = numericTotal( roll.results );
+	$( '#totalVal' ).textContent = tot ?? '';
+	res.classList.toggle( 'nototal', tot == null );
 	// Delayed reveals only apply if this roll is still the one resting on the table.
 	const still = () => anim.roll === roll && anim.phase === 'done';
 	requestAnimationFrame( () => { if ( ! still() ) return; res.classList.add( 'on' ); fitCamera( true ); } );
-	if ( types.length > 1 ) roll.results.forEach( ( v, i ) => { tagEls[ i ].textContent = v; setTimeout( () => { if ( still() ) tagEls[ i ].classList.add( 'on' ); }, 80 + i * 45 ); } );
+	if ( types.length > 1 ) roll.results.forEach( ( v, i ) => { tagEls[ i ].textContent = faceText( i, v ); setTimeout( () => { if ( still() ) tagEls[ i ].classList.add( 'on' ); }, 80 + i * 45 ); } );
 	window.__dice.results = roll.results.slice();
 	// Self-check: what the meshes actually show must equal the reported results.
 	const shown = meshes.map( ( m, i ) => types[ i ].faces[ readFace( types[ i ], m.quaternion ) ].label );
@@ -2649,10 +2748,10 @@ function renderHistory() {
 	const multi = types.length > 1;
 	for ( const r of rollHistory ) {
 		const li = document.createElement( 'li' ); li.className = 'hitem' + ( r === anim.roll ? ' cur' : '' );
-		const total = r.results.reduce( ( a, b ) => a + b, 0 );
+		const total = numericTotal( r.results );
 		const time = r.time.toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit', second: '2-digit' } );
-		li.innerHTML = `<div class="hrow"><b>${ r.kind === 'nudge' ? `Re-roll d${ types[ r.die ].N }` : r.kind === 'throw' ? `Throw ${ r.id }` : `Roll ${ r.id }` }</b><time>${ time }</time><span class="htot">${ multi ? '<small>Total</small>' + total : r.results[ 0 ] }</span></div>` +
-			`<div class="hchips">${ r.results.map( ( v, i ) => `<span style="--c:${ palettes[ i ].body }"><i></i><u>d${ types[ i ].N }</u>${ v }</span>` ).join( '' ) }</div>` +
+		li.innerHTML = `<div class="hrow"><b>${ r.kind === 'nudge' ? `Re-roll d${ types[ r.die ].N }` : r.kind === 'throw' ? `Throw ${ r.id }` : `Roll ${ r.id }` }</b><time>${ time }</time><span class="htot">${ multi ? ( total == null ? '' : '<small>Total</small>' + total ) : escHtml( faceText( 0, r.results[ 0 ] ) ) }</span></div>` +
+			`<div class="hchips">${ r.results.map( ( v, i ) => `<span style="--c:${ palettes[ i ].body }"><i></i><u>d${ types[ i ].N }</u>${ escHtml( faceText( i, v ) ) }</span>` ).join( '' ) }</div>` +
 			`<div class="hbtns"><button type="button" data-s="1">${ ICON_PLAY }Replay</button><button type="button" data-s="0.28">${ ICON_SLOW }Slow motion</button></div>`;
 		li.querySelectorAll( 'button' ).forEach( ( b ) => b.addEventListener( 'click', () => playRoll( r, Number( b.dataset.s ) ) ) );
 		list.appendChild( li );
@@ -2786,6 +2885,7 @@ function cfgFromParams() {
 		weights: Object.fromEntries( Object.entries( params.weights ).map( ( [ k, v ] ) => [ k, v.slice() ] ) ),
 		loaded: new Set( Object.keys( params.weights ).map( Number ) ), background: params.background, reroll: params.reroll, lock: params.lock, hideui: params.hideui, crits: params.crits, crit: params.critRaw, fumble: params.fumbleRaw,
 		look: params.look.map( ( l ) => ( l ? { ...l } : null ) ),
+		faces: params.faces.map( ( f ) => ( f ? f.slice() : null ) ),
 	};
 }
 const fmtW = ( w ) => ( w % 1 ? w.toFixed( 1 ) : String( w ) );
@@ -2808,6 +2908,9 @@ function cfgQuery() {
 		if ( ( cfg.crit || '' ).trim() ) parts.push( 'crit=' + cfg.crit.trim().replace( /\s+/g, '' ) );
 		if ( ( cfg.fumble || '' ).trim() ) parts.push( 'fumble=' + cfg.fumble.trim().replace( /\s+/g, '' ) );
 	}
+	const fc = cfg.faces.slice( 0, d.length ).map( ( f ) => ( f && f.some( Boolean ) ? f.map( ( x ) => ( x || '' ).replace( /[|,\[\]&#]/g, '' ) ).join( '|' ) : '0' ) );
+	while ( fc.length && fc[ fc.length - 1 ] === '0' ) fc.pop();
+	if ( fc.length ) parts.push( `faces=[${ fc.join( ',' ) }]` );
 	const lk = cfg.look.slice( 0, d.length ).map( ( l ) => ( l ? `${ l.body.slice( 1 ) }-${ l.ink ? ( l.ink[ 0 ] === '#' ? l.ink.slice( 1 ) : l.ink ) : 'auto' }-${ l.finish }` : '0' ) );
 	while ( lk.length && lk[ lk.length - 1 ] === '0' ) lk.pop();
 	if ( lk.length ) parts.push( `look=[${ lk.join( ',' ) }]` );
@@ -2821,8 +2924,83 @@ function cfgAddDie( N ) {
 	N = Math.round( Number( N ) );
 	if ( ! ( N >= 2 && N <= 100 ) ) { toast( 'Dice can have 2 to 100 sides.' ); return; }
 	if ( cfg.dice.length >= 30 ) { toast( 'Up to 30 dice per roll.' ); return; }
-	cfg.dice.push( N ); cfg.reverse.push( null ); cfg.look.push( null );
+	cfg.dice.push( N ); cfg.reverse.push( null ); cfg.look.push( null ); cfg.faces.push( null );
 	cfgRenderTray(); cfgRenderWeights(); cfgRenderUrl();
+}
+// The face editor: quick sets, one field per face, and one-tap emoji that fill faces in order.
+const FACE_SETS = [
+	{ name: 'Where to eat', faces: [ '🍕', '🍣', '🌮', '🍔', '🥗', '🍜' ] },
+	{ name: 'Yes or no', faces: [ 'Yes', 'No' ] },
+	{ name: 'Magic answer', faces: [ 'Yes', 'No', 'Maybe', 'Ask again', 'Surely', 'Never' ] },
+	{ name: 'Rock paper scissors', faces: [ '✊', '✋', '✌️' ] },
+	{ name: 'Heads or tails', faces: [ 'Heads', 'Tails' ] },
+	{ name: 'Mood', faces: [ '😀', '😂', '😍', '😎', '😴', '🤯' ] },
+	{ name: 'Directions', faces: [ '⬆️', '↗️', '➡️', '↘️', '⬇️', '↙️', '⬅️', '↖️' ] },
+	{ name: 'Weekdays', faces: [ 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun' ] },
+	{ name: 'Who goes first', faces: [ '🙋', '🙋‍♀️', '🙋‍♂️', '👉', '👈', '🫵' ] },
+];
+const FACE_EMOJI = [ '😀', '😂', '😍', '😎', '🤔', '😴', '🤯', '😱', '🥳', '👍', '👎', '❤️', '⭐', '🔥', '💀', '🎉', '🍀', '💰', '🍕', '🍔', '🌮', '🍣', '🍺', '☕', '🐶', '🐱', '🦄', '🐉', '⚔️', '🛡️', '🏆', '🎲' ];
+function cfgFaceName( N, f ) {
+	const i = cfg.dice.findIndex( ( n, k ) => n === N && cfg.faces[ k ] && cfg.faces[ k ][ f - 1 ] );
+	return i >= 0 ? cfg.faces[ i ][ f - 1 ] : String( f );
+}
+let fpIndex = -1, fpSel = 0;
+const fpClean = ( x ) => [ ...x.replace( /[|,\[\]&#]/g, '' ) ].slice( 0, 16 ).join( '' );
+function renderFaces() {
+	const i = fpIndex, N = cfg.dice[ i ], f = cfg.faces[ i ] || new Array( N ).fill( null );
+	$( '#fpTitle' ).textContent = `Faces of d${ N }`;
+	$( '#fpSub' ).textContent = f.some( Boolean ) ? `Custom faces · die ${ i + 1 } of ${ cfg.dice.length }` : `Numbers 1–${ N } · die ${ i + 1 } of ${ cfg.dice.length }`;
+	$( '#fpPrev' ).textContent = ( f.find( ( x ) => x && EMOJI_RE.test( x ) ) || ( f.find( Boolean ) ? '🔤' : '🎲' ) );
+	const same = ( set ) => set.faces.length === N && set.faces.every( ( x, k ) => x === f[ k ] );
+	$( '#fpSets' ).innerHTML = FACE_SETS.map( ( set, k ) => `<button type="button" class="fp-set${ same( set ) ? ' on' : '' }" data-k="${ k }"><span class="pv">${ escHtml( set.faces.slice( 0, 4 ).join( ' ' ) ) }${ set.faces.length > 4 ? ' …' : '' }</span>${ escHtml( set.name ) }<small>d${ set.faces.length }${ set.faces.length !== N ? ` · makes this a d${ set.faces.length }` : '' }</small></button>` ).join( '' );
+	$( '#fpSets' ).querySelectorAll( 'button' ).forEach( ( b ) => b.addEventListener( 'click', () => {
+		const set = FACE_SETS[ Number( b.dataset.k ) ], n = set.faces.length;
+		if ( cfg.dice[ i ] !== n ) { cfg.dice[ i ] = n; cfg.reverse[ i ] = null; cfgRenderWeights(); }
+		cfg.faces[ i ] = set.faces.slice(); fpSel = 0; renderFaces(); cfgRenderTray(); cfgRenderUrl();
+	} ) );
+	const grid = $( '#fpGrid' ); grid.innerHTML = '';
+	for ( let k = 0; k < N; k++ ) {
+		const cell = document.createElement( 'div' ); cell.className = 'fp-cell' + ( k === fpSel ? ' sel' : '' );
+		cell.innerHTML = `<i>${ k + 1 }</i><input type="text" enterkeyhint="next" autocomplete="off" autocapitalize="sentences" spellcheck="false" maxlength="24" placeholder="${ k + 1 }" aria-label="Face ${ k + 1 }" value="${ escHtml( f[ k ] || '' ) }">`;
+		const inp = cell.querySelector( 'input' );
+		inp.addEventListener( 'focus', () => { fpSel = k; grid.querySelectorAll( '.fp-cell' ).forEach( ( c, j ) => c.classList.toggle( 'sel', j === k ) ); } );
+		inp.addEventListener( 'input', () => { setFace( k, inp.value ); } );
+		inp.addEventListener( 'keydown', ( e ) => { if ( e.key === 'Enter' ) { e.preventDefault(); const nx = grid.querySelectorAll( 'input' )[ k + 1 ]; if ( nx ) nx.focus(); else inp.blur(); } } );
+		grid.appendChild( cell );
+	}
+}
+function setFace( k, value ) {
+	const i = fpIndex, N = cfg.dice[ i ];
+	const f = cfg.faces[ i ] || new Array( N ).fill( null );
+	f[ k ] = fpClean( value ).trim() || null;
+	cfg.faces[ i ] = f.some( Boolean ) ? f : null;
+	$( '#fpSub' ).textContent = cfg.faces[ i ] ? `Custom faces · die ${ i + 1 } of ${ cfg.dice.length }` : `Numbers 1–${ N } · die ${ i + 1 } of ${ cfg.dice.length }`;
+	$( '#fpSets' ).querySelectorAll( '.fp-set' ).forEach( ( b ) => { const set = FACE_SETS[ Number( b.dataset.k ) ]; b.classList.toggle( 'on', !! cfg.faces[ i ] && set.faces.length === N && set.faces.every( ( x, j ) => x === cfg.faces[ i ][ j ] ) ); } );
+	cfgRenderUrl();
+}
+function openFaces( i ) {
+	fpIndex = i; fpSel = 0; renderFaces();
+	$( '#fpEmo' ).innerHTML = FACE_EMOJI.map( ( e ) => `<button type="button" aria-label="Put ${ e } on the selected face">${ e }</button>` ).join( '' );
+	$( '#fpEmo' ).querySelectorAll( 'button' ).forEach( ( b ) => {
+		// Keep the keyboard and focus where they are; fill the selected face, then move to the next one.
+		b.addEventListener( 'pointerdown', ( e ) => e.preventDefault() );
+		b.addEventListener( 'click', () => {
+			const inputs = $( '#fpGrid' ).querySelectorAll( 'input' ), k = Math.min( fpSel, inputs.length - 1 );
+			inputs[ k ].value = b.textContent; setFace( k, b.textContent );
+			b.animate( [ { transform: 'scale(1.35)' }, { transform: 'scale(1)' } ], { duration: 260, easing: 'cubic-bezier(.2,1.5,.4,1)' } );
+			fpSel = ( k + 1 ) % inputs.length;
+			$( '#fpGrid' ).querySelectorAll( '.fp-cell' ).forEach( ( c, j ) => c.classList.toggle( 'sel', j === fpSel ) );
+			if ( document.activeElement && document.activeElement.closest && document.activeElement.closest( '#fpGrid' ) ) inputs[ fpSel ].focus();
+			else inputs[ fpSel ].scrollIntoView( { block: 'nearest' } );
+		} );
+	} );
+	const pop = $( '#facePop' ); pop.hidden = false; requestAnimationFrame( () => pop.classList.add( 'open' ) );
+}
+function closeFaces() {
+	const pop = $( '#facePop' ); if ( pop.hidden ) return false;
+	pop.classList.remove( 'open' ); setTimeout( () => { pop.hidden = true; }, 250 );
+	cfgRenderTray(); cfgRenderWeights(); cfgRenderUrl();
+	return true;
 }
 function cfgRenderTray() {
 	const n = cfg.dice.length, pal = THEMES[ cfg.background ].dice;
@@ -2835,11 +3013,15 @@ function cfgRenderTray() {
 		card.className = 'dcard' + ( cfg.reverse[ i ] ? ' forced' : '' );
 		card.style.setProperty( '--c', ( cfg.look[ i ] || pal[ i % pal.length ] ).body );
 		const opts = [ '<option value="">Random roll</option>' ];
-		for ( let f = 1; f <= N; f++ ) opts.push( `<option value="${ f }"${ cfg.reverse[ i ] === f ? ' selected' : '' }>Always ${ f }</option>` );
+		const fl = cfg.faces[ i ], fname = ( f ) => ( fl && fl[ f - 1 ] ) || String( f );
+		for ( let f = 1; f <= N; f++ ) opts.push( `<option value="${ f }"${ cfg.reverse[ i ] === f ? ' selected' : '' }>Always ${ escHtml( fname( f ) ) }</option>` );
+		const fset = fl && fl.some( Boolean ), fprev = fset ? fl.map( ( x, k ) => x || String( k + 1 ) ).join( ' ' ) : `Numbers 1–${ N }`;
 		card.innerHTML = `<button type="button" class="rm" aria-label="Remove d${ N }">✕</button>` +
 			`<div class="top"><button type="button" class="shape" title="Style this die" aria-label="Style die ${ i + 1 }, d${ N }">${ lookIcon( N, styleBase( i ) ) }<span class="brush">${ ICON_BRUSH }</span></button><div class="nm">d${ N }<small>${ shapeName( N ) }</small>${ cfg.look[ i ] ? '<em class="custom-tag">Custom</em>' : '' }</div></div>` +
+			`<button type="button" class="facesb${ fset ? ' set' : '' }" aria-label="Faces of die ${ i + 1 }, d${ N }"><span class="fi">${ fset ? '✏️' : '😀' }</span><span class="fv">${ escHtml( fprev ) }</span></button>` +
 			`<label>Result<span class="selw"><select aria-label="Result for die ${ i + 1 }, d${ N }">${ opts.join( '' ) }</select></span></label>`;
-		card.querySelector( '.rm' ).addEventListener( 'click', () => { cfg.dice.splice( i, 1 ); cfg.reverse.splice( i, 1 ); cfg.look.splice( i, 1 ); cfgRenderTray(); cfgRenderWeights(); cfgRenderUrl(); } );
+		card.querySelector( '.rm' ).addEventListener( 'click', () => { cfg.dice.splice( i, 1 ); cfg.reverse.splice( i, 1 ); cfg.look.splice( i, 1 ); cfg.faces.splice( i, 1 ); cfgRenderTray(); cfgRenderWeights(); cfgRenderUrl(); } );
+		card.querySelector( '.facesb' ).addEventListener( 'click', () => openFaces( i ) );
 		card.querySelector( '.shape' ).addEventListener( 'click', () => openStyle( i ) );
 		card.querySelector( 'select' ).addEventListener( 'change', ( e ) => { cfg.reverse[ i ] = e.target.value ? Number( e.target.value ) : null; card.classList.toggle( 'forced', !! cfg.reverse[ i ] ); cfgRenderUrl(); } );
 		grid.appendChild( card );
@@ -2860,7 +3042,7 @@ function cfgRenderWeights() {
 		const bars = card.querySelector( '.bars' ), info = card.querySelector( '.winfo' ), best = card.querySelector( '.wbest' );
 		for ( let f = 1; f <= N; f++ ) {
 			const b = document.createElement( 'div' ); b.className = 'bar';
-			b.innerHTML = `<em></em><i></i><b>${ N <= 30 || f === 1 || f % 5 === 0 ? f : '' }</b>`;
+			b.innerHTML = `<em></em><i></i><b>${ N <= 30 || f === 1 || f % 5 === 0 ? escHtml( cfgFaceName( N, f ) ) : '' }</b>`;
 			bars.appendChild( b );
 		}
 		const total = () => w.reduce( ( a, b ) => a + b, 0 );
@@ -2875,10 +3057,10 @@ function cfgRenderWeights() {
 			const t = total();
 			if ( ! t ) { best.innerHTML = '<strong>Every face is at 0, so this die rolls fair.</strong>'; return; }
 			let bi = 0; w.forEach( ( v, f ) => { if ( v > w[ bi ] ) bi = f; } );
-			best.innerHTML = w.every( ( v ) => v === w[ 0 ] ) ? 'All faces equally likely' : `Most likely: <strong>${ bi + 1 }</strong> · ${ pct( bi ) }%`;
+			best.innerHTML = w.every( ( v ) => v === w[ 0 ] ) ? 'All faces equally likely' : `Most likely: <strong>${ escHtml( cfgFaceName( N, bi + 1 ) ) }</strong> · ${ pct( bi ) }%`;
 		};
 		const barAt = ( x ) => { let bi = 0, bd = Infinity; [ ...bars.children ].forEach( ( b, f ) => { const r = b.getBoundingClientRect(), d = x < r.left ? r.left - x : x > r.right ? x - r.right : 0; if ( d < bd ) { bd = d; bi = f; } } ); return bi; };
-		const showInfo = ( f ) => { [ ...bars.children ].forEach( ( b, k ) => b.classList.toggle( 'hot', k === f ) ); info.innerHTML = `Face <strong>${ f + 1 }</strong> · weight ${ fmtW( w[ f ] ) } · lands ${ pct( f ) }% of the time`; };
+		const showInfo = ( f ) => { [ ...bars.children ].forEach( ( b, k ) => b.classList.toggle( 'hot', k === f ) ); info.innerHTML = `Face <strong>${ escHtml( cfgFaceName( N, f + 1 ) ) }</strong> · weight ${ fmtW( w[ f ] ) } · lands ${ pct( f ) }% of the time`; };
 		let drag = false;
 		const setW = ( e ) => {
 			const f = barAt( e.clientX ), r = bars.children[ f ].getBoundingClientRect();
@@ -2927,7 +3109,7 @@ function cfgRenderInteract() {
 function cfgCheckCrit() {
 	const help = $( '#cfgCritHelp' ), msgs = [];
 	for ( const [ id, label ] of [ [ 'cfgCrit', 'crit' ], [ 'cfgFumble', 'fumble' ] ] ) {
-		const w = []; parseCritRules( $( '#' + id ).value, label, Math.max( 1, cfg.dice.length ), w );
+		const w = []; parseCritRules( $( '#' + id ).value, label, Math.max( 1, cfg.dice.length ), w, cfg.faces || [] );
 		$( '#' + id ).classList.toggle( 'bad', w.length > 0 ); msgs.push( ...w );
 	}
 	if ( ! help.dataset.base ) help.dataset.base = help.innerHTML;
@@ -2937,6 +3119,7 @@ function cfgCheckCrit() {
 function cfgRenderHq() { $( '#cfgHq' ).setAttribute( 'aria-checked', String( cfg.hq ) ); $( '#cfgHqState' ).textContent = cfg.hq ? 'On' : 'Off'; $( '#cfgHqCard' ).classList.toggle( 'on', cfg.hq ); }
 function openConfig() {
 	$( '#stylePop' ).hidden = true; $( '#stylePop' ).classList.remove( 'open' );
+	$( '#facePop' ).hidden = true; $( '#facePop' ).classList.remove( 'open' );
 	cfg = cfgFromParams(); cfg.hq = HQ; cfgRenderHq(); cfgRenderInteract();
 	cfgRenderTray(); cfgRenderWeights(); cfgRenderThemes(); cfgRenderUrl();
 	toggleHistory( false );
@@ -2960,12 +3143,16 @@ function openConfig() {
 	dlg.querySelector( '[data-close]' ).addEventListener( 'click', () => dlg.close() );
 	dlg.addEventListener( 'click', ( e ) => { if ( e.target === dlg ) dlg.close(); } );
 	// Escape closes the style sheet first, not the whole dialog.
-	dlg.addEventListener( 'cancel', ( e ) => { if ( closeStyle() ) e.preventDefault(); } );
+	dlg.addEventListener( 'cancel', ( e ) => { if ( closeFaces() || closeStyle() ) e.preventDefault(); } );
 	$( '#stylePop' ).addEventListener( 'click', ( e ) => { if ( e.target.id === 'stylePop' ) closeStyle(); } );
+	$( '#facePop' ).addEventListener( 'click', ( e ) => { if ( e.target.id === 'facePop' ) closeFaces(); } );
+	$( '#fpClose' ).addEventListener( 'click', closeFaces );
+	$( '#fpDone' ).addEventListener( 'click', closeFaces );
+	$( '#fpReset' ).addEventListener( 'click', () => { cfg.faces[ fpIndex ] = null; fpSel = 0; renderFaces(); cfgRenderUrl(); } );
 	$( '#spClose' ).addEventListener( 'click', closeStyle );
 	$( '#spDone' ).addEventListener( 'click', closeStyle );
 	$( '#spReset' ).addEventListener( 'click', () => { cfg.look[ spIndex ] = null; renderStyle(); cfgRenderTray(); cfgRenderUrl(); } );
-	$( '#cfgReset' ).addEventListener( 'click', () => { cfg = { dice: [ 6 ], reverse: [ null ], weights: {}, loaded: new Set(), background: 'felt', hq: cfg.hq, reroll: false, lock: false, hideui: false, crits: true, crit: '', fumble: '', look: [ null ] }; cfgRenderTray(); cfgRenderWeights(); cfgRenderThemes(); cfgRenderInteract(); cfgRenderUrl(); } );
+	$( '#cfgReset' ).addEventListener( 'click', () => { cfg = { dice: [ 6 ], reverse: [ null ], weights: {}, loaded: new Set(), background: 'felt', hq: cfg.hq, reroll: false, lock: false, hideui: false, crits: true, crit: '', fumble: '', look: [ null ], faces: [ null ] }; cfgRenderTray(); cfgRenderWeights(); cfgRenderThemes(); cfgRenderInteract(); cfgRenderUrl(); } );
 	$( '#cfgHq' ).addEventListener( 'click', () => { cfg.hq = ! cfg.hq; cfgRenderHq(); } );
 	$( '#cfgReroll' ).addEventListener( 'click', () => { cfg.reroll = ! cfg.reroll; if ( ! cfg.reroll ) cfg.lock = false; cfgRenderInteract(); cfgRenderUrl(); } );
 	$( '#cfgLock' ).addEventListener( 'click', () => { if ( ! cfg.reroll ) return; cfg.lock = ! cfg.lock; cfgRenderInteract(); cfgRenderUrl(); } );
@@ -3012,13 +3199,15 @@ function planSuspense( r ) {
 		return ! ( Math.hypot( A[ o ] - B[ o ], A[ o + 1 ] - B[ o + 1 ], A[ o + 2 ] - B[ o + 2 ] ) < 0.05 && Math.abs( A[ o + 3 ] * B[ o + 3 ] + A[ o + 4 ] * B[ o + 4 ] + A[ o + 5 ] * B[ o + 5 ] + A[ o + 6 ] * B[ o + 6 ] ) > 0.9995 );
 	} );
 	if ( ! moving.some( Boolean ) ) return null;
-	const hiRule = ( i ) => ( params.critHigh ? params.critHigh.dice[ i ] : CRIT_DICE[ types[ i ].N ] ? ( v ) => v === types[ i ].N : null );
-	const loRule = ( i ) => ( params.critLow ? params.critLow.dice[ i ] : CRIT_DICE[ types[ i ].N ] ? ( v ) => v === 1 : null );
-	const total = r.results.reduce( ( a, b ) => a + b, 0 ), cands = [];
+	// Default rules only for numbered d20s and d100s; custom faces need an explicit rule.
+	const std = ( i ) => CRIT_DICE[ types[ i ].N ] && ! types[ i ].custom;
+	const hiRule = ( i ) => ( params.critHigh ? params.critHigh.dice[ i ] : std( i ) ? ( v ) => v === types[ i ].N : null );
+	const loRule = ( i ) => ( params.critLow ? params.critLow.dice[ i ] : std( i ) ? ( v ) => v === 1 : null );
+	const total = numericTotal( r.results ) ?? 0, cands = [];
 	types.forEach( ( t, i ) => {
 		if ( ! moving[ i ] ) return;
 		const v = r.results[ i ], hi = hiRule( i ), lo = loRule( i );
-		if ( hi && hi( v ) ) cands.push( { die: i, kind: 'high', src: 'die' } ); else if ( lo && lo( v ) ) cands.push( { die: i, kind: 'low', src: 'die' } );
+		if ( hi && hi( v, i ) ) cands.push( { die: i, kind: 'high', src: 'die' } ); else if ( lo && lo( v, i ) ) cands.push( { die: i, kind: 'low', src: 'die' } );
 	} );
 	const timing = types.map( ( t, i ) => ( moving[ i ] ? dieTiming( r, i ) : null ) );
 	// For a total, the spotlight is on the die that settles the outcome: the last to stop turning.
@@ -3030,6 +3219,7 @@ function planSuspense( r ) {
 	const t = types[ c.die ], v = r.results[ c.die ], tm = timing[ c.die ];
 	let title, sub;
 	if ( c.src === 'sum' ) { title = c.kind === 'high' ? 'CRITICAL' : 'FUMBLE'; sub = `Total ${ total }`; }
+	else if ( t.custom && t.custom[ v - 1 ] ) { title = t.custom[ v - 1 ]; sub = c.kind === 'high' ? 'Critical' : 'Fumble'; }
 	else if ( c.kind === 'high' && CRIT_DICE[ t.N ] && v === t.N ) { title = CRIT_DICE[ t.N ]; sub = 'Critical hit'; }
 	else if ( c.kind === 'low' && v === 1 && t.N >= 4 ) { title = 'NATURAL 1'; sub = 'Critical miss'; }
 	else { title = c.kind === 'high' ? 'CRITICAL' : 'FUMBLE'; sub = `d${ t.N } rolled ${ v }`; }

@@ -20,6 +20,7 @@
 - **Medieval Castle:** a dark oak table in a castle hall lit by four wax candles near the corners, each with a living flame and its own flickering, shadow-casting light, so the shadows shake.
 - **Throw them yourself.** Press on the dice and drag: they lift into your hand, jostling and rattling. Let go with a flick and the throw follows your hand: a gentle drop barely rolls, a hard swipe sends them bouncing off the rails.
 - **Shake to roll (phones).** On by default on phones (iPhone asks for motion access on your first tap; the phone button in the toolbar turns it off). The tray becomes a box in your hands: physics runs live, every movement of the phone throws the dice against the walls as you watch, with the clatter (and a buzz on phones that can vibrate). Hold the phone still and they land. Forced and loaded results hold for thrown and shaken dice too.
+- **Custom faces.** Put emoji or words on any die: "where do we eat?" 🍕🍣🌮🍔🥗🍜, yes/no on a coin, rock-paper-scissors on a d3. Emoji are printed in full colour, words are engraved like numbers and shrink to fit. In the setup dialog, tap a die's faces button: pick a quick set, type on each face, or tap emoji to fill the faces one by one. Results, history, forced results and crits all use the faces.
 - **Suspense for critical rolls.** Every roll is simulated before it's shown, so the app knows when a critical is coming and stages it: the last wobbles in slow motion, the camera swooping low beside the die, a heartbeat; then the reveal, with golden sparks and a fanfare, or a red shockwave and a sad trombone for a fumble. By default a d20 is critical on 20 and fumbles on 1 (a d100 on 100 and 1); `crit` and `fumble` set your own rules, per die or on the total.
 - **Tap to re-roll** (`reroll=1`): tap a die, or its result chip, and it jumps high with a random direction and spin. Real physics against the other dice, so the dice it hits can change too, while forced and loaded results keep holding. With `lock=1`, settled dice become immovable obstacles and keep their results.
 - **Physically based rendering** with three.js: clearcoat resin, glass with dispersion, metal and pearlescent dice, engraved numbers, soft shadows and mirror floors.
@@ -41,12 +42,13 @@ The page is configured entirely through its query string. With no parameters it 
 | --- | --- | --- |
 | `dice` | `dice=[4,6,8,10,12,20,38]` | One entry per die: its number of sides (2–100, up to 30 dice). |
 | `weights` | `weights=[6,1,1,10,1,1,1]` | Loaded dice. The first number picks the die size, then one relative weight per face. Here face 3 of every d6 is 10× as likely. Several: `weights=[[6,1,1,10,1,1,1],[20,…]]`. |
-| `reverse` | `reverse=[2,4,6]` | Results to land on, in dice order. Use `0` for a die that should roll freely, e.g. `reverse=[0,20]`. |
+| `faces` | `faces=[🍕\|🍣\|🌮\|🍔\|🥗\|🍜,0,Yes\|No]` | Custom faces per die, in dice order: faces separated by `\|`, `0` keeps a die's numbers, an empty face keeps its number. Without `dice`, each list also sets its die's size (six faces make a d6). |
+| `reverse` | `reverse=[2,4,6]` | Results to land on, in dice order. Use `0` for a die that should roll freely, e.g. `reverse=[0,20]`. A custom face works too: `reverse=[🌮]`. |
 | `background` | `background=crystal` | `felt`, `wood`, `marble`, `cosmos`, `neon`, `velvet`, `crystal`, `stone`, `medieval` (or `1`–`9`). |
 | `reroll` | `reroll=1` | Tap a die (or its result chip) to re-roll just that die. The motion is pure physics, and forced results and weights still hold: a die forced to 4 lands on 4 again, even when knocked over by another die. |
 | `look` | `look=[c1121f-ffffff-glass,0,1f5fe0-gold-polished]` | Per-die style, in dice order: body colour, number colour (hex, `gold`, `silver` or `auto`) and finish. `0` keeps the table's default. Finishes: `gloss`, `matte`, `metal`, `pearl`, `glass`, `gem`, `stone`, `polished`, `neon`; a finish the table doesn't offer falls back to its closest material. |
 | `hideui` | `hideui=1` | Hide every button and the results; only the settings button stays (top-right). Tap the table or press Space to roll. Handy for streams and display screens. |
-| `crit` | `crit=[20,0,>=5]` | When a roll is critical. One rule per die in brackets (`0` = none), a single rule for every die (`crit=>=19`), or a rule on the total (`crit=sum>=30`). A rule is a number, `>=N`, `>N`, `<=N`, `<N`, a range like `19-20`, or alternatives like `1\|20`. Default: a d20 on 20, a d100 on 100. |
+| `crit` | `crit=[20,0,>=5]` | When a roll is critical. One rule per die in brackets (`0` = none), a single rule for every die (`crit=>=19`), or a rule on the total (`crit=sum>=30`). A rule is a number, `>=N`, `>N`, `<=N`, `<N`, a range like `19-20`, alternatives like `1\|20`, or a custom face (`crit=🌮`). Default: a d20 on 20, a d100 on 100. |
 | `fumble` | `fumble=sum<=5` | When a roll is a fumble, with the same rules as `crit`. Default: a d20 or d100 on 1. |
 | `crits` | `crits=0` | Turns the dramatic critical rolls off (they're on by default). |
 | `lock` | `lock=1` | With `reroll=1`: settled dice can't be moved; re-rolled dice bounce off them. |
@@ -62,6 +64,8 @@ Examples:
 ?dice=[6,6,6,6,6,6]&background=stone&reroll=1
 ?dice=[20,12,10,8,6,4]&background=medieval&reroll=1&lock=1
 ?dice=[20]&crit=>=19&fumble=<=2
+?faces=[🍕|🍣|🌮|🍔|🥗|🍜]
+?faces=[Yes|No,✊|✋|✌️]&background=velvet
 ?dice=[6,6,6]&crit=sum>=16&fumble=sum<=4
 ```
 
