@@ -24,6 +24,7 @@
 - **Setup dialog.** Build any configuration visually. It only writes the query string, so every setup is a shareable link.
 - **Roll history.** Every roll is recorded frame by frame and can be replayed at real speed or in slow motion, or cleared.
 - **Result badges** over each die can be hidden with one button.
+- **Supersampling at rest.** Once the dice settle and the camera stops, 32 sub-pixel-jittered frames are averaged into one, so engraved numbers, highlights and shadow edges come out perfectly smooth (tables with living light keep a short moving average instead).
 - **High resolution by default:** the screen's real pixel density (3× on most phones, within a pixel budget on huge displays), 8× MSAA, double-resolution textures and smoother dice. It can be switched off per device in the setup dialog.
 - **Smooth camera.** It plans each roll from the recorded trajectory, pulling back before a high toss and easing back in with damped springs.
 - **Installable PWA.** Works offline after the first visit.

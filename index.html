@@ -457,6 +457,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /* ------------------------------------------------------------------ *
@@ -1430,7 +1431,65 @@ controls.minPolarAngle = 0.05; controls.maxPolarAngle = 1.32; controls.rotateSpe
 
 const rt = new THREE.WebGLRenderTarget( innerWidth, innerHeight, { type: THREE.HalfFloatType, samples: HQ ? 8 : 4 } );
 const composer = new EffectComposer( renderer, rt );
-composer.addPass( new RenderPass( scene, camera ) );
+
+/*
+ * Supersampling at rest. While the dice and camera are still, each frame is rendered with the
+ * camera shifted by a different sub-pixel offset (a Halton sequence) and blended into a running
+ * average, so after ~half a second every pixel holds SS_SAMPLES samples: crisp engraved numbers,
+ * calm highlights and smooth shadow edges. Anything that moves resets it to plain MSAA. Tables
+ * with living light (candles, caustics) keep a short moving average instead of converging.
+ */
+const SS_SAMPLES = 32;
+const halton = ( i, b ) => { let f = 1, r = 0; while ( i > 0 ) { f /= b; r += f * ( i % b ); i = Math.floor( i / b ); } return r; };
+const ssVert = 'varying vec2 vUv;\nvoid main() { vUv = uv; gl_Position = vec4( position.xy, 0.0, 1.0 ); }';
+class AccumRenderPass extends RenderPass {
+	constructor( scene, camera ) {
+		super( scene, camera );
+		this.accumulate = false; this.live = false; this.k = 0;
+		this.accRT = new THREE.WebGLRenderTarget( 1, 1, { type: THREE.HalfFloatType, depthBuffer: false } );
+		this.blend = new FullScreenQuad( new THREE.ShaderMaterial( {
+			uniforms: { tDiffuse: { value: null }, uWeight: { value: 1 } }, vertexShader: ssVert,
+			fragmentShader: 'uniform sampler2D tDiffuse; uniform float uWeight; varying vec2 vUv;\nvoid main() { gl_FragColor = vec4( texture2D( tDiffuse, vUv ).rgb, uWeight ); }',
+			transparent: true, blending: THREE.NormalBlending, depthTest: false, depthWrite: false,
+		} ) );
+		this.copy = new FullScreenQuad( new THREE.ShaderMaterial( {
+			uniforms: { tDiffuse: { value: null } }, vertexShader: ssVert,
+			fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv;\nvoid main() { gl_FragColor = texture2D( tDiffuse, vUv ); }',
+			blending: THREE.NoBlending, depthTest: false, depthWrite: false,
+		} ) );
+	}
+	setSize( w, h ) { this.accRT.setSize( w, h ); this.k = 0; }
+	get converged() { return ! this.live && this.k >= SS_SAMPLES; }
+	render( renderer, writeBuffer, readBuffer, deltaTime, maskActive ) {
+		if ( ! this.accumulate ) { this.k = 0; super.render( renderer, writeBuffer, readBuffer, deltaTime, maskActive ); return; }
+		if ( ! this.converged ) {
+			// Sample 0 is the unshifted view, so switching into accumulation never jumps.
+			const e = this.camera.projectionMatrix.elements, e8 = e[ 8 ], e9 = e[ 9 ], n = this.k % SS_SAMPLES;
+			if ( n > 0 ) { e[ 8 ] += ( 2 * halton( n, 2 ) - 1 ) / readBuffer.width; e[ 9 ] += ( 2 * halton( n, 3 ) - 1 ) / readBuffer.height; }
+			super.render( renderer, writeBuffer, readBuffer, deltaTime, maskActive );
+			e[ 8 ] = e8; e[ 9 ] = e9;
+			const u = this.blend.material.uniforms;
+			u.tDiffuse.value = readBuffer.texture; u.uWeight.value = this.live ? Math.max( 1 / ( this.k + 1 ), 0.2 ) : 1 / ( this.k + 1 );
+			const ac = renderer.autoClear; renderer.autoClear = false;
+			renderer.setRenderTarget( this.accRT ); this.blend.render( renderer );
+			renderer.autoClear = ac;
+			this.k++;
+		}
+		this.copy.material.uniforms.tDiffuse.value = this.accRT.texture;
+		renderer.setRenderTarget( readBuffer ); this.copy.render( renderer );
+	}
+}
+const scenePass = new AccumRenderPass( scene, camera );
+composer.addPass( scenePass );
+// Accumulate only when nothing on screen moves: dice at rest and the camera exactly where it was.
+const ssPrev = new Float64Array( 23 ).fill( NaN );
+function ssStill() {
+	// Springs and orbit damping settle asymptotically, so compare with a tolerance.
+	const cur = [ ...camera.position.toArray(), ...camera.quaternion.toArray(), ...camera.projectionMatrix.elements ];
+	let still = true;
+	for ( let i = 0; i < cur.length; i++ ) { if ( ! ( Math.abs( cur[ i ] - ssPrev[ i ] ) <= 1e-5 * ( 1 + Math.abs( cur[ i ] ) ) ) ) still = false; ssPrev[ i ] = cur[ i ]; }
+	return still && ( anim.phase === 'done' || anim.phase === 'idle' );
+}
 const bloom = new UnrealBloomPass( new THREE.Vector2( innerWidth, innerHeight ), ...theme.bloom );
 composer.addPass( bloom );
 composer.addPass( new OutputPass() );
@@ -2832,6 +2891,8 @@ function tick() {
 	}
 	for ( const f of flickers ) f.l.intensity = f.base * ( 0.86 + 0.1 * Math.sin( now * 7.3 + f.seed ) + 0.06 * Math.sin( now * 17.1 + f.seed * 2 ) + 0.04 * Math.sin( now * 31 + f.seed ) );
 	controls.update();
+	scenePass.accumulate = HQ && ssStill();
+	scenePass.live = candles.length > 0 || flickers.length > 0 || !! theme.caustics;
 	composer.render();
 	if ( anim.phase === 'done' && types.length > 1 ) {
 		const w = innerWidth, h = innerHeight;
@@ -2929,7 +2990,7 @@ document.querySelector( 'meta[name="theme-color"]' ).setAttribute( 'content', th
 /* ------------------------------------------------------------------ *
  * Boot
  * ------------------------------------------------------------------ */
-window.__dice = { params, results: null, get types() { return types; }, get scene() { return scene; }, get camera() { return camera; }, get controls() { return controls; }, get renderer() { return renderer; }, get composer() { return composer; }, planNudge: ( i ) => planNudge( i ), planRoll: () => planRoll(), sim: ( seed ) => simulate( seed ) };
+window.__dice = { params, results: null, get types() { return types; }, get scene() { return scene; }, get camera() { return camera; }, get controls() { return controls; }, get renderer() { return renderer; }, get composer() { return composer; }, get scenePass() { return scenePass; }, planNudge: ( i ) => planNudge( i ), planRoll: () => planRoll(), sim: ( seed ) => simulate( seed ) };
 ( async () => {
 	try {
 		const fontReady = Promise.race( [ document.fonts.load( fontStr( 100 ) ).then( () => document.fonts.ready ), new Promise( ( r ) => setTimeout( r, 3000 ) ) ] );
