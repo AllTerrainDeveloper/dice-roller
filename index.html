@@ -926,6 +926,109 @@ function addCaustics( mat ) {
 	};
 	mat.customProgramCacheKey = () => 'caustic-floor-v1';
 }
+// --- Coloured shadows through glass dice --------------------------------------------
+// A shadow map only knows "blocked or not", so glass dice cast a thin, see-through shadow
+// there (alpha-hashed, which keeps the die's true outline), and every surface that receives
+// shadows tints each light by the glass it passes through: the die is treated as a soft ball
+// of coloured glass, darker at the rim where light bends away, bright where it focuses.
+const GLASS_MAX = 16, GLASS_SHADOW = 0.32;
+const glassU = {
+	uGlassN: { value: 0 },
+	uGlassS: { value: Array.from( { length: GLASS_MAX }, () => new THREE.Vector4() ) },
+	uGlassC: { value: Array.from( { length: GLASS_MAX }, () => new THREE.Color() ) },
+};
+const GLASS_GLSL = `uniform int uGlassN;
+uniform vec4 uGlassS[ ${ GLASS_MAX } ];
+uniform vec3 uGlassC[ ${ GLASS_MAX } ];
+vec3 glassTint( vec3 p, vec3 L, float maxT ) {
+	vec3 t = vec3( 1.0 );
+	for ( int k = 0; k < ${ GLASS_MAX }; k ++ ) {
+		if ( k >= uGlassN ) break;
+		vec3 c = ( viewMatrix * vec4( uGlassS[ k ].xyz, 1.0 ) ).xyz - p;
+		float r = uGlassS[ k ].w, b = dot( c, L );
+		if ( b <= 0.0 || b > maxT + r ) continue;
+		float x = sqrt( max( dot( c, c ) - b * b, 0.0 ) ) / r;
+		if ( x >= 1.0 ) continue;
+		float cover = 1.0 - smoothstep( 0.55, 1.0, x ), x2 = x * x;
+		vec3 col = uGlassC[ k ] * ( 0.3 + 0.3 * ( 1.0 - x2 ) + 3.2 * exp( - x2 * 5.0 ) );
+		t *= mix( vec3( 1.0 ), col, cover );
+	}
+	return t;
+}
+// Light from the room around (sky, walls, lamps' bounce) comes mostly from above, so the
+// glass also throws a soft coloured pool straight down, wider and fainter the higher it is.
+vec3 glassAmbient( vec3 p ) {
+	vec3 up = normalize( ( viewMatrix * vec4( 0.0, 1.0, 0.0, 0.0 ) ).xyz ), t = vec3( 1.0 );
+	for ( int k = 0; k < ${ GLASS_MAX }; k ++ ) {
+		if ( k >= uGlassN ) break;
+		vec3 c = ( viewMatrix * vec4( uGlassS[ k ].xyz, 1.0 ) ).xyz - p;
+		float b = dot( c, up );
+		if ( b <= 0.0 ) continue;
+		float r = uGlassS[ k ].w * ( 1.3 + 0.3 * b ), x = sqrt( max( dot( c, c ) - b * b, 0.0 ) ) / r;
+		if ( x >= 1.0 ) continue;
+		float x2 = x * x, cover = ( 1.0 - smoothstep( 0.3, 1.0, x ) ) / ( 1.0 + 0.5 * b * b );
+		vec3 col = uGlassC[ k ] * ( 0.55 + 1.8 * exp( - x2 * 4.0 ) );
+		t *= mix( vec3( 1.0 ), col, cover );
+	}
+	return t;
+}`;
+const GLASS_LIGHTS = ( () => {
+	let c = THREE.ShaderChunk.lights_fragment_begin;
+	const rep = [
+		[ 'getPointLightInfo( pointLight, geometryPosition, directLight );', 'directLight.color *= glassTint( geometryPosition, directLight.direction, length( pointLight.position - geometryPosition ) );' ],
+		[ 'getSpotLightInfo( spotLight, geometryPosition, directLight );', 'directLight.color *= glassTint( geometryPosition, directLight.direction, length( spotLight.position - geometryPosition ) );' ],
+		[ 'getDirectionalLightInfo( directionalLight, directLight );', 'directLight.color *= glassTint( geometryPosition, directLight.direction, 1e5 );' ],
+	];
+	for ( const [ a, b ] of rep ) { if ( ! c.includes( a ) ) console.warn( 'glass shadows: chunk changed', a ); c = c.replace( a, a + '\n\t\t' + b ); }
+	return c;
+} )();
+function addGlassShadows( mat ) {
+	const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey;
+	const hasPrev = prev !== THREE.Material.prototype.onBeforeCompile;
+	const baseKey = hasPrev ? prevKey.call( mat ) : '';
+	mat.onBeforeCompile = ( sh, r ) => {
+		if ( hasPrev ) prev.call( mat, sh, r );
+		Object.assign( sh.uniforms, glassU );
+		sh.fragmentShader = sh.fragmentShader
+			.replace( 'void main() {', GLASS_GLSL + '\nvoid main() {' )
+			.replace( '#include <lights_fragment_begin>', GLASS_LIGHTS )
+			.replace( '#include <lights_fragment_end>', '#include <lights_fragment_end>\n\treflectedLight.indirectDiffuse *= glassAmbient( geometryPosition );' );
+	};
+	mat.customProgramCacheKey = () => baseKey + '|glass-shadow-v2';
+	return mat;
+}
+const isGlass = ( pal ) => ( pal.transmission ?? 0 ) >= 0.5;
+// The light a glass die lets through: its own hue at full brightness, dimmer for cloudier glass.
+function glassShadowColor( pal ) {
+	const c = new THREE.Color( pal.body ), m = Math.max( c.r, c.g, c.b, 1e-3 );
+	c.multiplyScalar( 1 / m );
+	return c.lerp( new THREE.Color( 1, 1, 1 ), 0.06 ).multiplyScalar( 0.55 + 0.45 * pal.transmission );
+}
+let glassDepthMat = null, glassDistanceMat = null;
+function glassShadowCaster( m ) {
+	if ( ! glassDepthMat ) {
+		// Shadow-map materials ignore opacity (and three copies the die's own alpha map onto
+		// them), so the coverage is set in the shader, just before the alpha hash.
+		const hashed = ( mat ) => {
+			mat.onBeforeCompile = ( sh ) => { sh.fragmentShader = sh.fragmentShader.replace( '#include <alphahash_fragment>', `diffuseColor.a = ${ GLASS_SHADOW.toFixed( 3 ) };\n#include <alphahash_fragment>` ); };
+			mat.customProgramCacheKey = () => 'glass-caster-' + GLASS_SHADOW;
+			return mat;
+		};
+		glassDepthMat = hashed( new THREE.MeshDepthMaterial( { depthPacking: THREE.RGBADepthPacking, alphaHash: true } ) );
+		glassDistanceMat = hashed( new THREE.MeshDistanceMaterial( { alphaHash: true } ) );
+	}
+	m.customDepthMaterial = glassDepthMat; m.customDistanceMaterial = glassDistanceMat;
+}
+function updateGlassShadows() {
+	let n = 0;
+	for ( let i = 0; i < meshes.length && n < GLASS_MAX; i++ ) {
+		const m = meshes[ i ];
+		if ( ! m.visible || ! isGlass( palettes[ i ] ) ) continue;
+		glassU.uGlassS.value[ n ].set( m.position.x, m.position.y, m.position.z, types[ i ].circumR * 0.82 * m.scale.x );
+		glassU.uGlassC.value[ n ].copy( m.userData.glassColor ); n++;
+	}
+	glassU.uGlassN.value = n;
+}
 function causticJS( x, y, time ) {
 	const px = ( ( x * 6.28318 ) % 6.28318 ) - 250, py = ( ( y * 6.28318 ) % 6.28318 ) - 250, inten = 0.005;
 	let ix = px, iy = py, c = 1;
@@ -1767,7 +1870,7 @@ function buildFloor() {
 	if ( theme.reflect ) { mat.polygonOffset = true; mat.polygonOffsetFactor = -2; mat.polygonOffsetUnits = -4; }
 	const maxAniso = renderer.capabilities.getMaxAnisotropy();
 	for ( const t of [ mat.map, mat.bumpMap, mat.emissiveMap ] ) if ( t ) t.anisotropy = maxAniso;
-	const floor = new THREE.Mesh( geo, mat );
+	const floor = new THREE.Mesh( geo, addGlassShadows( mat ) );
 	floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; tableGroup.add( floor );
 
 	if ( theme.sky ) {
@@ -1956,6 +2059,7 @@ function buildStoneCourt( hx, hz ) {
 	  normal = normalize( ( viewMatrix * vec4( nW, 0.0 ) ).xyz ); }` );
 		};
 		stoneMat.customProgramCacheKey = () => 'stone-court-v1';
+		addGlassShadows( stoneMat );
 	}
 	const court = new THREE.Mesh( g, stoneMat ); court.receiveShadow = true; railGroup.add( court );
 	stoneField = { hx, hz };
@@ -2137,6 +2241,7 @@ function buildRails( hx, hz ) {
 		railMat = railMaterial(); railMat.shadowSide = THREE.FrontSide;
 		railMat.onBeforeCompile = ( sh ) => addGroundAO( sh );
 		railMat.customProgramCacheKey = () => 'rail-ao-' + params.background;
+		addGlassShadows( railMat );
 	}
 	const [ H, T, B, RC ] = RAIL;
 	// Outer and inner rounded rectangles share one centre, so every corner is a true concentric curve.
@@ -2616,9 +2721,9 @@ function makeDice() {
 	meshes = types.map( ( t, i ) => {
 		const geo = theme.stone ? t.geometry.clone().scale( 0.97 + 0.06 * Math.random(), 0.97 + 0.06 * Math.random(), 0.97 + 0.06 * Math.random() ) : t.geometry;
 		const m = new THREE.Mesh( geo, makeDieMaterial( palettes[ i ], t ) );
-		// Candlelight shines through glass: in the hall, glass dice don't block it with a solid black
-		// shadow (the soft contact shadow still grounds them), so the lit table shows through.
-		m.castShadow = ! ( params.background === 'medieval' && ( palettes[ i ].transmission ?? 0 ) >= 0.9 );
+		// Glass lets the light through: a thin see-through shadow, coloured by the glass.
+		m.castShadow = true;
+		if ( isGlass( palettes[ i ] ) ) { glassShadowCaster( m ); m.userData.glassColor = glassShadowColor( palettes[ i ] ); }
 		m.receiveShadow = true; m.visible = false; scene.add( m ); return m;
 	} );
 	aoTextures();
@@ -2626,6 +2731,8 @@ function makeDice() {
 		const b = new THREE.Mesh( new THREE.PlaneGeometry( 1, 1 ), new THREE.MeshBasicMaterial( { map: aoBlobTex, color: 0x000000, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 } ) );
 		b.rotation.x = -Math.PI / 2; b.renderOrder = 2; b.visible = false; scene.add( b ); return b;
 	} );
+	// Under glass the contact shadow is the glass's own colour, deepened, not black.
+	blobs.forEach( ( b, i ) => { if ( isGlass( palettes[ i ] ) ) b.material.color.copy( meshes[ i ].userData.glassColor ).multiplyScalar( 0.28 ); } );
 	// Gem dice focus the key light into coloured caustic pools on the floor.
 	if ( theme.caustics ) {
 		decals = meshes.map( ( m, i ) => {
@@ -3411,8 +3518,9 @@ function tick() {
 		const R = types[ i ].circumR, ground = theme.stone ? stoneSample( m.position.x, m.position.z ).h : 0, h = Math.max( 0, m.position.y - ground - R * 0.7 );
 		b.position.set( m.position.x, ground + 0.01, m.position.z );
 		b.scale.setScalar( R * 2.3 * ( 1 + h * 0.6 ) * m.scale.x );
-		b.material.opacity = AO_STRENGTH * clamp( 1 - h / 1.6, 0, 1 );
+		b.material.opacity = AO_STRENGTH * ( isGlass( palettes[ i ] ) ? 0.75 : 1 ) * clamp( 1 - h / 1.6, 0, 1 );
 	} );
+	updateGlassShadows();
 	if ( decals.length && shadowLight ) {
 		const Lp = shadowLight.position;
 		meshes.forEach( ( m, i ) => {
@@ -3902,7 +4010,7 @@ document.querySelector( 'meta[name="theme-color"]' ).setAttribute( 'content', th
 /* ------------------------------------------------------------------ *
  * Boot
  * ------------------------------------------------------------------ */
-window.__dice = { params, results: null, get types() { return types; }, get scene() { return scene; }, get camera() { return camera; }, get controls() { return controls; }, get renderer() { return renderer; }, get composer() { return composer; }, get scenePass() { return scenePass; }, get anim() { return anim; }, shake: () => shake, onMotion: ( e ) => onMotion( e ), startLive: () => startLive(), stepLive: ( dt ) => stepLive( dt ), get history() { return rollHistory; }, critCam: () => critCam, planSuspense: ( r ) => planSuspense( r ), planNudge: ( i ) => planNudge( i ), planRoll: () => planRoll(), sim: ( seed ) => simulate( seed ) };
+window.__dice = { params, results: null, get types() { return types; }, get scene() { return scene; }, get camera() { return camera; }, get controls() { return controls; }, get renderer() { return renderer; }, get composer() { return composer; }, get scenePass() { return scenePass; }, get anim() { return anim; }, shake: () => shake, onMotion: ( e ) => onMotion( e ), startLive: () => startLive(), stepLive: ( dt ) => stepLive( dt ), get history() { return rollHistory; }, glassU, critCam: () => critCam, planSuspense: ( r ) => planSuspense( r ), planNudge: ( i ) => planNudge( i ), planRoll: () => planRoll(), sim: ( seed ) => simulate( seed ) };
 ( async () => {
 	try {
 		const fontReady = Promise.race( [ document.fonts.load( fontStr( 100 ) ).then( () => document.fonts.ready ), new Promise( ( r ) => setTimeout( r, 3000 ) ) ] );
